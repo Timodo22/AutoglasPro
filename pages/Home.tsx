@@ -195,7 +195,7 @@ export const Home: React.FC = () => {
             <div
               className={`
                 absolute 
-                top-[80px] -left-16 w-[400px] h-[400px]
+                top-[230px] -left-16 w-[400px] h-[400px]
                 lg:-top-[450px] lg:-left-28 lg:w-[650px] lg:h-[650px]
                 pointer-events-none mix-blend-screen z-0
                 transition-all duration-[450ms] ease-out 
