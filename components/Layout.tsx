@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Phone, MapPin, Menu, X, Clock, Mail, MessageCircle } from 'lucide-react';
+import LogoGroot from '../assets/AutoglasPRO-logo-2.svg'
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -43,7 +44,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             {/* Logo Area */}
             <Link to="/" className="flex items-center">
               <img 
-                src="https://autoglaspro.nl/wp-content/uploads/2020/10/AutoglasPRO-logo-2.svg" 
+                src={LogoGroot} 
                 alt="Autoglas Pro Logo" 
                 className="h-12 md:h-16 w-auto object-contain"
               />
@@ -120,9 +121,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         <div className="max-w-7xl mx-auto px-4 py-12 md:py-16 grid grid-cols-1 md:grid-cols-3 gap-12 relative z-10">
           <div>
              <img 
-                src="https://autoglaspro.nl/wp-content/uploads/2020/10/AutoglasPRO-logo-2.svg" 
+                src={LogoGroot}
                 alt="Autoglas Pro Logo" 
-                className="h-12 w-auto object-contain mb-6 brightness-0 invert opacity-80"
+                className="h-12 w-auto object-contain mb-6 "
               />
             <p className="text-gray-400 leading-relaxed mb-6">
               Wij zijn de specialist in autoruit reparatie en vervanging in Uden en omstreken. 

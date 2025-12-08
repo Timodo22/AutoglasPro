@@ -2,18 +2,30 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { DamageForm } from '../components/DamageForm';
 import { Stripes } from '../components/Stripes';
-import { ArrowRight, Wrench, ShieldCheck, Sun, Car, Sparkles, Droplets, CheckCircle, Phone, X, Briefcase } from 'lucide-react';
+import { ArrowRight, Wrench, ShieldCheck, Sun, Car, Sparkles, Droplets, CheckCircle, Briefcase } from 'lucide-react';
 import { Service } from '../types';
-import glass from '../assets/glass.png';
-import Daan_kantoor from '../assets/Daan_kantoor.jpg'
-import Daan2 from '../assets/Daan2.jpg'
-import Daan3 from '../assets/Daan3.jpg'
-import Daan4 from '../assets/Daan4.jpg'
-import Daan5 from '../assets/Daan5.jpg'
-import Daan6 from '../assets/Daan6.jpg'
-import Daan7 from '../assets/Daan7.jpg'
 
-// Zorg dat dit klopt met jouw mp3 bestand
+// Afbeeldingen
+import Daan2 from '../assets/Daan2.jpg';
+import Daan3 from '../assets/Daan3.jpg';
+import Daan4 from '../assets/Daan4.jpg';
+import Daan5 from '../assets/Daan5.jpg';
+import Daan6 from '../assets/Daan6.jpg';
+import Daan7 from '../assets/Daan7.jpg';
+import Glass from '../assets/Glass.jpg';
+
+// Partner Logo's (1 t/m 9)
+import logo1 from '../assets/Logo1.png';
+import logo2 from '../assets/Logo2.png';
+import logo3 from '../assets/Logo3.png';
+import logo4 from '../assets/Logo4.png';
+import logo5 from '../assets/Logo5.png';
+import logo6 from '../assets/Logo6.png';
+import logo7 from '../assets/Logo7.png';
+import logo8 from '../assets/Logo8.png';
+import logo9 from '../assets/Logo9.png';
+
+// Geluid
 import breakSound from "../assets/GlassBreakingSound.mp3";
 
 // --- GLOBALE VARIABELE ---
@@ -69,11 +81,23 @@ const services: ExtendedService[] = [
   }
 ];
 
-const partners = ["LeasePlan", "Athlon", "Unigarant", "Achmea", "Allianz", "Interpolis"];
+// De partners array
+const partners = [
+  { name: "LeasePlan", logo: logo1 },
+  { name: "Athlon", logo: logo2 },
+  { name: "Unigarant", logo: logo3 },
+  { name: "Achmea", logo: logo4 },
+  { name: "Allianz", logo: logo5 },
+  { name: "Interpolis", logo: logo6 },
+  { name: "Univé", logo: logo7 },
+  { name: "Centraal Beheer", logo: logo8 },
+  { name: "a.s.r.", logo: logo9 },
+];
 
 export const Home: React.FC = () => {
   const { hash } = useLocation();
   
+  // State voor gebroken glas en modal
   const [broken, setBroken] = useState(hasGlassBrokenSession);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
 
@@ -107,25 +131,6 @@ export const Home: React.FC = () => {
   };
 
   useEffect(() => {
-    const handleScroll = () => {
-      if (!broken && !hasGlassBrokenSession && window.scrollY > 50 && !showEmergencyModal) {
-        setBroken(true);
-        hasGlassBrokenSession = true;
-
-        // @ts-ignore
-        if (window.breakGlassAudio) {
-           // @ts-ignore
-           window.breakGlassAudio.currentTime = 0;
-           // @ts-ignore
-           window.breakGlassAudio.play().catch(e => console.log("Audio nog niet toegestaan:", e));
-        }
-      }
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [broken, showEmergencyModal]);
-
-  useEffect(() => {
     if (hash) {
       const element = document.querySelector(hash);
       if (element) {
@@ -138,76 +143,21 @@ export const Home: React.FC = () => {
 
   return (
     <>
-      {/* --- EMERGENCY MODAL --- */}
-      {showEmergencyModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative transform transition-all scale-100">
-            <button 
-              onClick={unlockAudio}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-            >
-              <X size={24} />
-            </button>
-            <div className="text-center space-y-4 pt-2">
-              <div className="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Phone className="text-agp-red w-8 h-8 animate-pulse" />
-              </div>
-              <h3 className="text-2xl font-black text-slate-900">Spoedgeval?</h3>
-              <p className="text-gray-600">Heeft u acute ruitschade en kunt u niet verder rijden? Wij zijn direct bereikbaar.</p>
-              <div className="grid grid-cols-1 gap-3 pt-4">
-                <a 
-                  href="tel:0413331619"
-                  onClick={unlockAudio}
-                  className="w-full py-3 bg-agp-red text-white font-bold rounded-lg shadow-lg hover:bg-red-700 flex items-center justify-center gap-2"
-                >
-                  <Phone size={18} />
-                  Bel 0413 331 619 Nu
-                </a>
-                <button 
-                  onClick={unlockAudio}
-                  className="w-full py-3 bg-gray-100 text-gray-600 font-bold rounded-lg hover:bg-gray-200"
-                >
-                  Nee, bedankt
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-slate-900">
         
         {/* Background */}
         <div className="absolute inset-0 z-0">
           <img 
-            src={Daan_kantoor} 
+            src={Glass} 
             alt="Monteur vervangt autoruit" 
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-white/90 pointer-events-none"></div>
+          <div className="absolute inset-0 bg-white/80 pointer-events-none"></div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 relative z-20 w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center pt-10">
           <div className="space-y-8 relative animate-fade-in-up mt-[-100px] md:mt-0">
-
-            {/* BROKEN GLASS ANIMATIE */}
-            <div
-              className={`
-                absolute 
-                top-[230px] -left-16 w-[400px] h-[400px]
-                lg:-top-[450px] lg:-left-28 lg:w-[650px] lg:h-[650px]
-                pointer-events-none mix-blend-screen z-0
-                transition-all duration-[450ms] ease-out 
-                ${broken ? "opacity-80 scale-125" : "opacity-0 scale-50"}
-              `}
-            >
-              <img 
-                src={glass} 
-                alt="Broken Glass Effect"
-                className="w-full h-full object-contain rotate-[-10deg]"
-              />
-            </div>
 
             <h1 className="leading-tight drop-shadow-2xl relative z-10 flex flex-col items-start">
               <span className="text-[3D56AE] font-bold text-3xl uppercase tracking-wider mb-2 md:text-5xl md:font-black md:normal-case md:tracking-normal md:mb-0">
@@ -234,7 +184,7 @@ export const Home: React.FC = () => {
                 href="https://www.google.com/maps/dir//Oostwijk+1C,+5406+XT+Uden" 
                 target="_blank" 
                 rel="noreferrer"
-                className="px-8 py-4 bg-white/10 backdrop-blur-md border border-white/30 text-slate-800 lg:text-white text-lg font-bold rounded-lg hover:bg-white hover:text-agp-blue transition duration-300 text-center"
+                className="px-8 py-4 bg-agp-blue text-white text-lg font-bold rounded-lg shadow-lg hover:bg-blue-800 transition duration-300 text-center"
               >
                 Plan Route
               </a>
@@ -260,7 +210,7 @@ export const Home: React.FC = () => {
         <DamageForm />
       </section>
 
-      {/* --- NIEUWE SECTIE: PERSONEEL / VACATURES BANNER --- */}
+      {/* --- PERSONEEL / VACATURES BANNER --- */}
       <section className="py-10 bg-white relative overflow-hidden font-sans">
         <div className="max-w-5xl mx-auto px-4 relative z-10">
           
@@ -286,9 +236,7 @@ export const Home: React.FC = () => {
                   <span>Bekijk Vacatures</span>
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </Link>
-
           </div>
-
         </div>
       </section>
 
@@ -307,25 +255,31 @@ export const Home: React.FC = () => {
                 className={`flex flex-col lg:flex-row items-center gap-12 lg:gap-20 ${index % 2 !== 0 ? 'lg:flex-row-reverse' : ''}`}
               >
                 <div className="w-full lg:w-1/2 relative group">
-                  
-                  {/* --- DE NIEUWE VERTICALE LIJNEN STIJL (NESTED BORDERS) --- */}
-                  {/* Dit gebruikt nu de 'oude' techniek van het personeelsblok:
-                      Een buitenste blauwe border, padding voor het wit, en een binnenste rode border. */}
-<div className="absolute top-4 left-4 w-full h-full transform translate-x-2 translate-y-2 group-hover:translate-x-4 group-hover:translate-y-4 transition duration-500 rounded-2xl border-[6px] border-[#3D56AE] bg-white p-0.5">
-  <div className="w-full h-full rounded-xl border-[6px] border-[#d9204f] bg-gray-50"></div>
-</div>
+                  {/* Lijnen – dikker & zichtbaarder */}
+                  <div className="
+                    absolute 
+                    top-2 left-1 lg:top-4 lg:left-4 
+                    w-full h-full 
+                    transform 
+                    translate-x-1 translate-y-1 
+                    lg:translate-x-3 lg:translate-y-3 
+                    lg:group-hover:translate-x-5 lg:group-hover:translate-y-5 
+                    transition duration-500 
+                    rounded-2xl 
+                    border-[5px] lg:border-[10px] 
+                    border-[#3D56AE] 
+                    bg-white p-1
+                  ">
+                    <div className="w-full h-full rounded-xl border-[5px] lg:border-[10px] border-[#d9204f] bg-gray-50"></div>
+                  </div>
 
-
-                  <div className="relative overflow-hidden rounded-2xl shadow-2xl aspect-[4/3]">
-                    <div className="absolute inset-0 bg-slate-900/10 group-hover:bg-transparent transition duration-500 z-10"></div>
-                    <img 
-                      src={service.image} 
-                      alt={service.title} 
-                      className="w-full h-full object-cover transform group-hover:scale-110 transition duration-700"
+                  {/* Afbeelding */}
+                  <div className="relative overflow-hidden rounded-xl shadow-2xl aspect-[4/3] scale-[0.94] lg:scale-95 origin-center -translate-x-2 lg:translate-x-0">
+                    <img
+                      src={service.image}
+                      alt={service.title}
+                      className="w-full h-full object-cover transform lg:group-hover:scale-110 transition duration-700"
                     />
-                    <div className="absolute top-6 right-6 bg-white p-4 rounded-xl shadow-lg z-20">
-                      <service.icon className={`w-8 h-8 ${index % 2 === 0 ? 'text-agp-red' : 'text-agp-blue'}`} />
-                    </div>
                   </div>
                 </div>
 
@@ -346,17 +300,6 @@ export const Home: React.FC = () => {
                       </li>
                     ))}
                   </ul>
-
-                  <div className="pt-4">
-                    <a 
-                      href="#schade-melden" 
-                      className={`inline-flex items-center gap-2 px-8 py-3 rounded-lg font-bold text-white transition transform hover:-translate-y-1 shadow-md ${index % 2 === 0 ? 'bg-agp-blue hover:bg-blue-800' : 'bg-agp-red hover:bg-red-700'}`}
-                    >
-                      Meld Schade
-                      <ArrowRight size={18} />
-                    </a>
-                  </div>
-
                 </div>
               </div>
             ))}
@@ -364,35 +307,69 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* PARTNERS */}
-      <section className="py-16 bg-slate-900 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-agp-blue rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 bg-agp-red rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+      {/* PARTNERS - INFINITE SCROLL (Donkere achtergrond, grote logo's, geen filter) */}
+      <section className="py-16 bg-slate-900 text-white overflow-hidden">
+        
+        {/* CSS Injectie voor de animatie */}
+        <style>{`
+          @keyframes infinite-scroll {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+          }
+          .animate-infinite-scroll {
+            animation: infinite-scroll 40s linear infinite;
+          }
+        `}</style>
 
-        <div className="max-w-7xl mx-auto px-4 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 mb-12 text-center">
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Wij werken samen met</h2>
+          <p className="text-gray-400">Erkend door vrijwel alle verzekeraars en leasemaatschappijen.</p>
+        </div>
 
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold">Wij werken samen met</h2>
-            <p className="text-gray-400">Erkend door vrijwel alle verzekeraars en leasemaatschappijen.</p>
+        {/* De Slider Container */}
+        <div className="relative w-full overflow-hidden">
+          
+          {/* Fade effect aan zijkanten (aangepast naar donkere kleur) */}
+          <div className="absolute left-0 top-0 bottom-0 w-12 md:w-24 bg-gradient-to-r from-slate-900 to-transparent z-10"></div>
+          <div className="absolute right-0 top-0 bottom-0 w-12 md:w-24 bg-gradient-to-l from-slate-900 to-transparent z-10"></div>
+
+          {/* De bewegende rij (2x de lijst voor naadloze loop) */}
+          <div className="flex animate-infinite-scroll w-max items-center py-4">
+            
+            {/* Set 1 */}
+            {/* Gap vergroot naar 16 (mobiel) en 32 (desktop) vanwege grotere logo's */}
+            <div className="flex items-center gap-16 md:gap-32 px-8 md:px-16">
+              {partners.map((partner, i) => (
+                <img 
+                  key={`p1-${i}`}
+                  src={partner.logo} 
+                  alt={partner.name} 
+                  // Hoogte aangepast: h-20 (mobiel) en h-32 (desktop). Opacity verwijderd.
+                  className="h-20 md:h-32 w-auto object-contain max-w-none"
+                />
+              ))}
+            </div>
+
+            {/* Set 2 */}
+            <div className="flex items-center gap-16 md:gap-32 px-8 md:px-16">
+              {partners.map((partner, i) => (
+                <img 
+                  key={`p2-${i}`}
+                  src={partner.logo} 
+                  alt={partner.name} 
+                  className="h-20 md:h-32 w-auto object-contain max-w-none"
+                />
+              ))}
+            </div>
+
           </div>
-
-          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-70 grayscale hover:grayscale-0 transition-all duration-500">
-            {partners.map((partner, i) => (
-              <div key={i} className="text-2xl font-black text-white/50 hover:text-white transition">
-                {partner}
-              </div>
-            ))}
-          </div>
-
         </div>
       </section>
 
       {/* CTA */}
       <section className="py-20 bg-white relative border-t border-gray-200">
         <div className="max-w-4xl mx-auto px-4 text-center">
-
           <h2 className="text-4xl font-black text-agp-blue mb-6">Direct geholpen worden?</h2>
-
           <p className="text-xl text-gray-600 mb-8">
             Wacht niet te lang met ruitschade. Een sterretje kan doorscheuren.
             Kom langs in Uden of bel ons direct.
@@ -414,7 +391,6 @@ export const Home: React.FC = () => {
               Routebeschrijving
             </a>
           </div>
-
         </div>
       </section>
     </>
