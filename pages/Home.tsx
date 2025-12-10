@@ -97,7 +97,6 @@ const partners = [
 export const Home: React.FC = () => {
   const { hash } = useLocation();
   
-  // State voor gebroken glas en modal
   const [broken, setBroken] = useState(hasGlassBrokenSession);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
 
@@ -144,61 +143,105 @@ export const Home: React.FC = () => {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-slate-900">
+      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-white">
         
-        {/* Background */}
-        <div className="absolute inset-0 z-0">
-          <img 
-            src={Glass} 
-            alt="Monteur vervangt autoruit" 
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-white/80 pointer-events-none"></div>
-        </div>
+{/* ACHTERGROND MET DIAGONALE SCHEIDING & FOTO */}
+<div className="absolute inset-0 z-0 overflow-hidden">
+  {/* Wrapper die groter is dan het scherm en die we verschuiven */}
+  <div
+    className="
+      absolute
+      w-[140%] h-[140%]
+      transform
+      translate-x-[0%] translate-y-[15%]           /* mobiel: iets naar rechts & beneden */
+      md:translate-x-[5%] md:translate-y-[10%]     /* tablet: anders positioneren */
+      lg:translate-x-[0%] lg:translate-y-[0%]    /* desktop: nog iets verder naar rechts/onder */
+    "
+  >
+    <img
+      src={Glass}
+      alt="Monteur vervangt autoruit"
+      className="w-full h-full object-cover"
+    />
+  </div>
 
-        <div className="max-w-7xl mx-auto px-4 relative z-20 w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center pt-10">
-          <div className="space-y-8 relative animate-fade-in-up mt-[-100px] md:mt-0">
+  {/* Masker voor de gedraaide gradient blijft erboven */}
+  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div
+      className="absolute -inset-32"
+      style={{
+        background: `radial-gradient(circle at -4% -8%,
+          white 0%,
+          white 45%,
+          #d9204f 45%,
+          #d9204f 48%,
+          white 48%,
+          white 49%,
+          #3D56AE 49%,
+          #3D56AE 53%,
+          transparent 53%
+        )`,
+        transform: 'rotate(5deg)',
+        transformOrigin: 'center',
+      }}
+    />
+  </div>
+</div>
 
-            <h1 className="leading-tight drop-shadow-2xl relative z-10 flex flex-col items-start">
-              <span className="text-[3D56AE] font-bold text-3xl uppercase tracking-wider mb-2 md:text-5xl md:font-black md:normal-case md:tracking-normal md:mb-0">
-                SCHADE AAN
-              </span>
-              <span className="bg-clip-text text-transparent bg-[#d9204f] whitespace-nowrap font-black text-4xl md:text-7xl">
-                UW AUTORUIT?
-              </span>
-            </h1>
 
-            <p className="text-xl text-[3D56AE] max-w-lg leading-relaxed font-medium drop-shadow-md relative z-10">
-              Wij helpen u snel weer veilig op weg. Erkend door alle verzekeraars en specialist in regio Uden.
-            </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 relative z-20">
-              <a 
-                href="#schade-melden"
-                className="px-8 py-4 bg-agp-red text-white text-lg font-bold rounded-lg shadow-lg hover:bg-red-600 transition duration-300 flex items-center justify-center gap-2 transform hover:-translate-y-1"
-              >
-                Nu Schade Melden
-                <ArrowRight size={20} />
-              </a>
-              <a 
-                href="https://www.google.com/maps/dir//Oostwijk+1C,+5406+XT+Uden" 
-                target="_blank" 
-                rel="noreferrer"
-                className="px-8 py-4 bg-agp-blue text-white text-lg font-bold rounded-lg shadow-lg hover:bg-blue-800 transition duration-300 text-center"
-              >
-                Plan Route
-              </a>
-            </div>
-          </div>
+{/* CONTENT HERO */}
+<div className="max-w-8xl mx-auto px-4 relative z-20 w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center pt-10">
+  
+  {/* Linkerkant tekst */}
+  {/* AANPASSING 1: Ik heb 'flex flex-col' toegevoegd om de spacing makkelijker te maken op mobiel */}
+  <div className="relative animate-fade-in-up flex flex-col -mt-10 md:mt-[-6px] lg:mt-[-300px] lg:pl-9 lg:block">
+    
+    {/* Titel Sectie */}
+    {/* AANPASSING 2: '-mt-32' trekt de titel fors omhoog op mobiel. Pas dit getal aan (bv -20 of -40) */}
+    <h1 className="leading-tight relative z-10 flex flex-col items-start -mt-49 md:mt-0">
+      <span className="text-[#3D56AE] font-bold text-3xl uppercase tracking-wider mb-2 md:text-5xl md:font-black md:normal-case md:tracking-normal md:mb-0">
+        SCHADE AAN UW
+      </span>
+      <span className="bg-clip-text text-transparent bg-[#d9204f] whitespace-nowrap font-black text-4xl md:text-7xl">
+        AUTORUIT?
+      </span>
+    </h1>
 
-          <div className="hidden lg:block relative z-30 transform hover:scale-[1.01] transition duration-500">
-            {/* ANKERPUNT VOOR DESKTOP FORMULIER */}
-            <div id="schade-melden" className="absolute -top-32"></div>
-            
-            <div className="absolute -inset-1 bg-gradient-to-r from-agp-red via-white to-agp-blue rounded-xl blur opacity-30 animate-pulse"></div>
-            <DamageForm />
-          </div>
-        </div>
+    {/* Tekst verbergen op mobiel (ongewijzigd) */}
+    <p className="hidden md:block text-xl text-[#3D56AE] max-w-lg leading-relaxed font-medium relative z-10 mt-6">
+      Wij helpen u snel weer veilig op weg. Erkend door alle verzekeraars en specialist in regio Uden.
+    </p>
+
+    {/* Knoppen Sectie */}
+    {/* AANPASSING 3: 'mt-36' duwt de knoppen fors naar beneden op mobiel. Pas dit aan naar wens. */}
+    <div className="flex flex-col sm:flex-row gap-4 relative z-20 mt-[300px] md:mt-8 lg:mt-8">
+      <a 
+        href="#schade-melden"
+        className="px-8 py-4 bg-agp-red text-white text-lg font-bold rounded-lg shadow-lg hover:bg-red-600 transition duration-300 flex items-center justify-center gap-2 transform hover:-translate-y-1"
+      >
+        Nu Schade Melden
+        <ArrowRight size={20} />
+      </a>
+      <a 
+        href="https://www.google.com/maps/dir//Oostwijk+1C,+5406+XT+Uden" 
+        target="_blank" 
+        rel="noreferrer"
+        className="px-8 py-4 bg-agp-blue text-white text-lg font-bold rounded-lg shadow-lg hover:bg-blue-800 transition duration-300 text-center"
+      >
+        Plan Route
+      </a>
+    </div>
+  </div>
+
+  {/* Rechterkant formulier (ongewijzigd voor desktop) */}
+  <div className="hidden lg:block relative z-30 transform hover:scale-[1.01] transition duration-500 max-w-lg ml-auto">
+    <div id="schade-melden" className="absolute -top-32" />
+    <div className="absolute -inset-1 bg-gradient-to-r from-agp-red via-white to-agp-blue rounded-xl blur opacity-30 animate-pulse" />
+    <DamageForm />
+  </div>
+</div>
+
 
         <div className="absolute bottom-0 left-0 w-full z-20">
           <Stripes className="h-4 w-full shadow-2xl" />
@@ -213,29 +256,27 @@ export const Home: React.FC = () => {
       {/* --- PERSONEEL / VACATURES BANNER --- */}
       <section className="py-10 bg-white relative overflow-hidden font-sans">
         <div className="max-w-5xl mx-auto px-4 relative z-10">
-          
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-              
-              {/* Subtiel patroon binnenin */}
-              <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #3D56AE 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
-
-              <div className="flex items-center gap-5 relative z-10">
-                  <div className="hidden md:flex bg-blue-50 p-4 rounded-full border border-blue-100 text-agp-blue">
-                      <Briefcase className="w-6 h-6" />
-                  </div>
-                  <div className="text-center md:text-left">
-                      <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-1">Kom werken bij ons team!</h2>
-                      <p className="text-gray-500 text-base">Wij zijn op zoek naar enthousiaste vakmensen.</p>
-                  </div>
+            <div
+              className="absolute inset-0 opacity-[0.03]"
+              style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #3D56AE 1px, transparent 0)', backgroundSize: '24px 24px' }}
+            />
+            <div className="flex items-center gap-5 relative z-10">
+              <div className="hidden md:flex bg-blue-50 p-4 rounded-full border border-blue-100 text-agp-blue">
+                <Briefcase className="w-6 h-6" />
               </div>
-              
-              <Link 
-                  to="/career" 
-                  className="group relative z-10 px-8 py-3 bg-agp-blue text-white font-semibold rounded-lg hover:bg-blue-800 transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg"
-              >
-                  <span>Bekijk Vacatures</span>
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </Link>
+              <div className="text-center md:text-left">
+                <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-1">Kom werken bij ons team!</h2>
+                <p className="text-gray-500 text-base">Wij zijn op zoek naar enthousiaste vakmensen.</p>
+              </div>
+            </div>
+            <Link 
+              to="/career" 
+              className="group relative z-10 px-8 py-3 bg-agp-blue text-white font-semibold rounded-lg hover:bg-blue-800 transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg"
+            >
+              <span>Bekijk Vacatures</span>
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </Link>
           </div>
         </div>
       </section>
@@ -255,7 +296,6 @@ export const Home: React.FC = () => {
                 className={`flex flex-col lg:flex-row items-center gap-12 lg:gap-20 ${index % 2 !== 0 ? 'lg:flex-row-reverse' : ''}`}
               >
                 <div className="w-full lg:w-1/2 relative group">
-                  {/* Lijnen – dikker & zichtbaarder */}
                   <div className="
                     absolute 
                     top-2 left-1 lg:top-4 lg:left-4 
@@ -270,10 +310,9 @@ export const Home: React.FC = () => {
                     border-[#3D56AE] 
                     bg-white p-1
                   ">
-                    <div className="w-full h-full rounded-xl border-[5px] lg:border-[10px] border-[#d9204f] bg-gray-50"></div>
+                    <div className="w-full h-full rounded-xl border-[5px] lg:border-[10px] border-[#d9204f] bg-gray-50" />
                   </div>
 
-                  {/* Afbeelding */}
                   <div className="relative overflow-hidden rounded-xl shadow-2xl aspect-[4/3] scale-[0.94] lg:scale-95 origin-center -translate-x-2 lg:translate-x-0">
                     <img
                       src={service.image}
@@ -285,13 +324,10 @@ export const Home: React.FC = () => {
 
                 <div className="w-full lg:w-1/2 space-y-6">
                   <h3 className="text-3xl md:text-4xl font-bold text-slate-900">{service.title}</h3>
-                  
-                  <div className={`h-1 w-20 ${index % 2 === 0 ? 'bg-agp-red' : 'bg-agp-blue'}`}></div>
-
+                  <div className={`h-1 w-20 ${index % 2 === 0 ? 'bg-agp-red' : 'bg-agp-blue'}`} />
                   <p className="text-lg text-gray-600 leading-relaxed">
                     {service.longDescription}
                   </p>
-
                   <ul className="space-y-3">
                     {["Snel geregeld", "Erkend door verzekeraars", "Garantie op werkzaamheden"].map((item, i) => (
                       <li key={i} className="flex items-center gap-3 text-slate-700 font-medium">
@@ -307,10 +343,8 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* PARTNERS - INFINITE SCROLL (Donkere achtergrond, grote logo's, geen filter) */}
+      {/* PARTNERS - INFINITE SCROLL */}
       <section className="py-16 bg-slate-900 text-white overflow-hidden">
-        
-        {/* CSS Injectie voor de animatie */}
         <style>{`
           @keyframes infinite-scroll {
             from { transform: translateX(0); }
@@ -326,31 +360,22 @@ export const Home: React.FC = () => {
           <p className="text-gray-400">Erkend door vrijwel alle verzekeraars en leasemaatschappijen.</p>
         </div>
 
-        {/* De Slider Container */}
         <div className="relative w-full overflow-hidden">
-          
-          {/* Fade effect aan zijkanten (aangepast naar donkere kleur) */}
-          <div className="absolute left-0 top-0 bottom-0 w-12 md:w-24 bg-gradient-to-r from-slate-900 to-transparent z-10"></div>
-          <div className="absolute right-0 top-0 bottom-0 w-12 md:w-24 bg-gradient-to-l from-slate-900 to-transparent z-10"></div>
+          <div className="absolute left-0 top-0 bottom-0 w-12 md:w-24 bg-gradient-to-r from-slate-900 to-transparent z-10" />
+          <div className="absolute right-0 top-0 bottom-0 w-12 md:w-24 bg-gradient-to-l from-slate-900 to-transparent z-10" />
 
-          {/* De bewegende rij (2x de lijst voor naadloze loop) */}
           <div className="flex animate-infinite-scroll w-max items-center py-4">
-            
-            {/* Set 1 */}
-            {/* Gap vergroot naar 16 (mobiel) en 32 (desktop) vanwege grotere logo's */}
             <div className="flex items-center gap-16 md:gap-32 px-8 md:px-16">
               {partners.map((partner, i) => (
                 <img 
                   key={`p1-${i}`}
                   src={partner.logo} 
                   alt={partner.name} 
-                  // Hoogte aangepast: h-20 (mobiel) en h-32 (desktop). Opacity verwijderd.
                   className="h-20 md:h-32 w-auto object-contain max-w-none"
                 />
               ))}
             </div>
 
-            {/* Set 2 */}
             <div className="flex items-center gap-16 md:gap-32 px-8 md:px-16">
               {partners.map((partner, i) => (
                 <img 
@@ -361,7 +386,6 @@ export const Home: React.FC = () => {
                 />
               ))}
             </div>
-
           </div>
         </div>
       </section>
