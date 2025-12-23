@@ -4,6 +4,7 @@ import { ClipboardList, Car, CheckCircle, AlertCircle, Send, Star } from 'lucide
 export const Werkbon: React.FC = () => {
   const [kenteken, setKenteken] = useState('');
   const [stars, setStars] = useState(0);
+  const [workType, setWorkType] = useState(''); // Bijhouden of het reparatie of vervanging is
   
   // Web3Forms Access Key
   const WEB3FORMS_KEY = "YOUR_ACCESS_KEY_HERE";
@@ -57,69 +58,78 @@ export const Werkbon: React.FC = () => {
             <hr className="my-8 border-gray-100" />
 
             {/* TYPE WERKZAAMHEID SECTIE */}
-            <div className="mb-8">
-              <label className="block text-sm font-bold text-gray-700 uppercase mb-4 ml-1">
+            <div className="mb-8 space-y-4">
+              <label className="block text-sm font-bold text-gray-700 uppercase mb-2 ml-1">
                 Type Werkzaamheid
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer transition hover:border-blue-400 group has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 border-gray-200">
+              
+              {/* OPTIE 1: REPARATIE */}
+              <div className="space-y-4">
+                <label className={`relative flex items-center p-5 border-2 rounded-xl cursor-pointer transition ${workType === 'Reparatie' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
                   <input 
                     type="radio" 
                     name="type_werkzaamheid" 
                     value="Reparatie" 
                     required 
-                    className="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500" 
+                    onChange={(e) => setWorkType(e.target.value)}
+                    className="w-6 h-6 text-blue-600 border-gray-300 focus:ring-blue-500" 
                   />
                   <div className="ml-4">
-                    <span className="block font-black text-lg text-gray-800 uppercase">Ruit Reparatie</span>
-                    <span className="text-sm text-gray-500 font-medium">Sterretje herstellen</span>
+                    <span className="block font-black text-xl text-gray-800 uppercase leading-none">Ruit Reparatie</span>
+                    <span className="text-sm text-gray-500 font-medium">Sterretje(s) herstellen</span>
                   </div>
                 </label>
 
-                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer transition hover:border-blue-400 group has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 border-gray-200">
-                  <input 
-                    type="radio" 
-                    name="type_werkzaamheid" 
-                    value="Vervanging" 
-                    className="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500" 
-                  />
-                  <div className="ml-4">
-                    <span className="block font-black text-lg text-gray-800 uppercase">Ruit Vervangen</span>
-                    <span className="text-sm text-gray-500 font-medium">Nieuwe ruit plaatsen</span>
+                {/* STERREN SELECTOR (Alleen zichtbaar als Reparatie is gekozen) */}
+                {workType === 'Reparatie' && (
+                  <div className="ml-4 md:ml-10 p-6 bg-white border-2 border-dashed border-blue-200 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="block text-xs font-bold text-blue-900 uppercase mb-4 text-center tracking-widest">
+                      Aantal sterren in ruit
+                    </label>
+                    <div className="flex justify-center items-center gap-6">
+                      {[1, 2, 3, 4].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setStars(num)}
+                          className="focus:outline-none transition-transform active:scale-90"
+                        >
+                          <Star 
+                            size={44} 
+                            className={`transition-colors ${
+                              num <= stars 
+                              ? 'fill-yellow-400 text-yellow-500 drop-shadow-md' 
+                              : 'text-gray-200'
+                            }`} 
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <input type="hidden" name="aantal_sterren" value={stars} />
+                    <p className="text-center text-blue-600 text-sm mt-4 font-bold">
+                      {stars > 0 ? `${stars} ${stars === 1 ? 'Ster' : 'Sterren'} geselecteerd` : 'Tik om aantal sterren aan te geven'}
+                    </p>
                   </div>
-                </label>
+                )}
               </div>
-            </div>
 
-            {/* AANTAL STERREN SECTIE */}
-            <div className="mb-8 p-6 bg-gray-50 rounded-2xl border border-gray-100">
-              <label className="block text-sm font-bold text-gray-700 uppercase mb-4 text-center">
-                Aantal sterren in ruit
+              {/* OPTIE 2: VERVANGING */}
+              <label className={`relative flex items-center p-5 border-2 rounded-xl cursor-pointer transition ${workType === 'Vervanging' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
+                <input 
+                  type="radio" 
+                  name="type_werkzaamheid" 
+                  value="Vervanging" 
+                  onChange={(e) => {
+                    setWorkType(e.target.value);
+                    setStars(0); // Reset sterren als men voor vervanging kiest
+                  }}
+                  className="w-6 h-6 text-blue-600 border-gray-300 focus:ring-blue-500" 
+                />
+                <div className="ml-4">
+                  <span className="block font-black text-xl text-gray-800 uppercase leading-none">Ruit Vervangen</span>
+                  <span className="text-sm text-gray-500 font-medium">Nieuwe ruit plaatsen</span>
+                </div>
               </label>
-              <div className="flex justify-center items-center gap-4">
-                {[1, 2, 3, 4].map((num) => (
-                  <button
-                    key={num}
-                    type="button"
-                    onClick={() => setStars(num)}
-                    className="focus:outline-none transition-transform active:scale-90"
-                  >
-                    <Star 
-                      size={48} 
-                      className={`transition-colors ${
-                        num <= stars 
-                        ? 'fill-yellow-400 text-yellow-500 drop-shadow-md' 
-                        : 'text-gray-300'
-                      }`} 
-                    />
-                  </button>
-                ))}
-              </div>
-              {/* Hidden input om de waarde mee te sturen naar Web3Forms */}
-              <input type="hidden" name="aantal_sterren" value={stars} />
-              <p className="text-center text-gray-500 text-xs mt-4 font-medium uppercase tracking-widest">
-                {stars > 0 ? `${stars} ${stars === 1 ? 'Ster' : 'Sterren'} geselecteerd` : 'Selecteer aantal sterren'}
-              </p>
             </div>
 
             <hr className="my-8 border-gray-100" />
