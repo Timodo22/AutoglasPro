@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
-import { Camera, Send, FileUp } from 'lucide-react';
+// 1. Voeg 'Star' toe aan de imports
+import { Camera, Send, FileUp, Star } from 'lucide-react';
 
 export const DamageForm: React.FC = () => {
   const [result, setResult] = useState<string>("");
+  // 2. Nieuwe state voor de sterren
+  const [stars, setStars] = useState(0);
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setResult("Verzenden....");
     const formData = new FormData(event.currentTarget);
 
+    // Vergeet niet hier je eigen sleutel in te vullen!
     formData.append("access_key", "YOUR_WEB3FORMS_ACCESS_KEY_HERE"); 
 
     try {
@@ -22,6 +26,7 @@ export const DamageForm: React.FC = () => {
       if (data.success) {
         setResult("Bedankt! Uw melding is succesvol ontvangen. Wij nemen spoedig contact op.");
         (event.target as HTMLFormElement).reset();
+        setStars(0); // Reset ook de sterren na verzending
       } else {
         console.error("Error", data);
         setResult("Er ging iets mis. Probeer het later opnieuw of bel ons direct.");
@@ -51,17 +56,18 @@ export const DamageForm: React.FC = () => {
         <form onSubmit={onSubmit} className="space-y-6">
           <input type="hidden" name="subject" value="Nieuwe Schademelding via Website" />
           
+          {/* Kenteken & Telefoon */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Kenteken</label>
               <div className="relative flex items-stretch w-full h-[52px] bg-[#ffcc00] border-2 border-black rounded-md overflow-hidden shadow-sm">
                 <div className="bg-[#003399] w-10 flex flex-col items-center justify-between py-1 shrink-0 z-10">
-                   <div className="border border-white/80 rounded-full w-5 h-5 flex items-center justify-center">
-                     <svg viewBox="0 0 12 12" className="w-3 h-3 fill-white">
-                       <path d="M6 0.5l0.5 1.5h1.5l-1.2 0.9 0.5 1.5-1.3-0.9-1.3 0.9 0.5-1.5-1.2-0.9h1.5z"/>
-                     </svg>
-                   </div>
-                   <span className="text-white font-bold text-[10px]">NL</span>
+                    <div className="border border-white/80 rounded-full w-5 h-5 flex items-center justify-center">
+                      <svg viewBox="0 0 12 12" className="w-3 h-3 fill-white">
+                        <path d="M6 0.5l0.5 1.5h1.5l-1.2 0.9 0.5 1.5-1.3-0.9-1.3 0.9 0.5-1.5-1.2-0.9h1.5z"/>
+                      </svg>
+                    </div>
+                    <span className="text-white font-bold text-[10px]">NL</span>
                 </div>
                 <input 
                   type="text" 
@@ -84,8 +90,9 @@ export const DamageForm: React.FC = () => {
             </div>
           </div>
 
+          {/* Naam & Email */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div>
+              <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Naam</label>
               <input 
                 type="text" 
@@ -95,7 +102,7 @@ export const DamageForm: React.FC = () => {
                 className="w-full border-gray-300 border p-3 rounded-lg focus:ring-2 focus:ring-agp-blue focus:border-agp-blue focus:outline-none transition"
               />
             </div>
-             <div>
+              <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">E-mailadres</label>
               <input 
                 type="email" 
@@ -107,6 +114,38 @@ export const DamageForm: React.FC = () => {
             </div>
           </div>
 
+          {/* 3. NIEUW: AANTAL STERREN SECTIE */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Aantal sterren (indien van toepassing)</label>
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex justify-center items-center gap-4 mb-2">
+                {[1, 2, 3, 4].map((num) => (
+                  <button
+                    key={num}
+                    type="button" // Belangrijk: type="button" voorkomt dat het formulier verstuurt bij klikken
+                    onClick={() => setStars(num)}
+                    className="focus:outline-none transition-transform active:scale-90"
+                  >
+                    <Star 
+                      size={42} 
+                      className={`transition-colors ${
+                        num <= stars 
+                        ? 'fill-yellow-400 text-yellow-500 drop-shadow-sm' 
+                        : 'text-gray-300'
+                      }`} 
+                    />
+                  </button>
+                ))}
+              </div>
+              {/* Hidden input om de waarde mee te sturen naar Web3Forms */}
+              <input type="hidden" name="aantal_sterren" value={stars} />
+              <p className="text-center text-gray-500 text-sm font-medium tracking-wide">
+                {stars > 0 ? `${stars} ${stars === 1 ? 'ster' : 'sterren'} geselecteerd` : 'Tik op de sterren om te selecteren'}
+              </p>
+            </div>
+          </div>
+
+          {/* Foto upload */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Foto's uploaden (optioneel)</label>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition cursor-pointer relative group">
@@ -122,6 +161,7 @@ export const DamageForm: React.FC = () => {
             </div>
           </div>
 
+          {/* Opmerkingen */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Opmerkingen</label>
             <textarea 

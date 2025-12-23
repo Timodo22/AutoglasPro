@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ClipboardList, Car, CheckCircle, AlertCircle, Send, Tool, RefreshCw } from 'lucide-react';
+import { ClipboardList, Car, CheckCircle, AlertCircle, Send, Star } from 'lucide-react';
 
 export const Werkbon: React.FC = () => {
   const [kenteken, setKenteken] = useState('');
+  const [stars, setStars] = useState(0);
   
   // Web3Forms Access Key
   const WEB3FORMS_KEY = "YOUR_ACCESS_KEY_HERE";
@@ -88,6 +89,37 @@ export const Werkbon: React.FC = () => {
                   </div>
                 </label>
               </div>
+            </div>
+
+            {/* AANTAL STERREN SECTIE */}
+            <div className="mb-8 p-6 bg-gray-50 rounded-2xl border border-gray-100">
+              <label className="block text-sm font-bold text-gray-700 uppercase mb-4 text-center">
+                Aantal sterren in ruit
+              </label>
+              <div className="flex justify-center items-center gap-4">
+                {[1, 2, 3, 4].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setStars(num)}
+                    className="focus:outline-none transition-transform active:scale-90"
+                  >
+                    <Star 
+                      size={48} 
+                      className={`transition-colors ${
+                        num <= stars 
+                        ? 'fill-yellow-400 text-yellow-500 drop-shadow-md' 
+                        : 'text-gray-300'
+                      }`} 
+                    />
+                  </button>
+                ))}
+              </div>
+              {/* Hidden input om de waarde mee te sturen naar Web3Forms */}
+              <input type="hidden" name="aantal_sterren" value={stars} />
+              <p className="text-center text-gray-500 text-xs mt-4 font-medium uppercase tracking-widest">
+                {stars > 0 ? `${stars} ${stars === 1 ? 'Ster' : 'Sterren'} geselecteerd` : 'Selecteer aantal sterren'}
+              </p>
             </div>
 
             <hr className="my-8 border-gray-100" />
