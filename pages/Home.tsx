@@ -15,7 +15,6 @@ import Daan7 from '../assets/Daan7.jpg';
 import Glass from '../assets/Glass.jpg';
 
 // Partner Logo's (1 t/m 9)
-import logo1 from '../assets/Logo1.png';
 import logo2 from '../assets/Logo2.png';
 import logo3 from '../assets/Logo3.png';
 import logo4 from '../assets/Logo4.png';
@@ -41,7 +40,7 @@ const services: ExtendedService[] = [
     icon: Wrench, 
     title: "Autoruit Reparatie", 
     description: "Sterretje in uw ruit? Wij repareren het vaak gratis.",
-    longDescription: "Een sterretje in uw voorruit lijkt onschuldig, maar kan door temperatuurwisselingen plotseling doorscheuren. Wij repareren sterretjes met geavanceerde hars-injectietechnieken. Bent u verzekerd voor ruitschade? Dan is reparatie voor u meestal helemaal gratis en heeft geen invloed op uw no-claim.",
+    longDescription: "Een sterretje in uw voorruit lijkt onschuldig, maar kan door temperatuurwisselingen plotseling doorscheuren. Wij repareren sterretjes met geavanceerde hars-injectietechnieken, en plakken deze af voor de beste kwaliteit van de reparatie. Bent u verzekerd voor ruitschade? Dan is reparatie voor u meestal helemaal gratis en heeft geen invloed op uw no-claim.",
     image: Daan2
   },
   { 
@@ -83,7 +82,6 @@ const services: ExtendedService[] = [
 
 // De partners array
 const partners = [
-  { name: "LeasePlan", logo: logo1 },
   { name: "Athlon", logo: logo2 },
   { name: "Unigarant", logo: logo3 },
   { name: "Achmea", logo: logo4 },
@@ -173,12 +171,12 @@ export const Home: React.FC = () => {
         background: `radial-gradient(circle at -4% -8%,
           white 0%,
           white 45%,
-          #d9204f 45%,
-          #d9204f 48%,
+          #E30613 45%,
+          #E30613 48%,
           white 48%,
           white 49%,
-          #3D56AE 49%,
-          #3D56AE 53%,
+          #005CAB 49%,
+          #005CAB 53%,
           transparent 53%
         )`,
         transform: 'rotate(5deg)',
@@ -200,16 +198,16 @@ export const Home: React.FC = () => {
     {/* Titel Sectie */}
     {/* AANPASSING 2: '-mt-32' trekt de titel fors omhoog op mobiel. Pas dit getal aan (bv -20 of -40) */}
     <h1 className="leading-tight relative z-10 flex flex-col items-start -mt-49 md:mt-0">
-      <span className="text-[#3D56AE] font-bold text-3xl uppercase tracking-wider mb-2 md:text-5xl md:font-black md:normal-case md:tracking-normal md:mb-0">
+      <span className="text-[#005CAB] font-bold text-3xl uppercase tracking-wider mb-2 md:text-5xl md:font-black md:normal-case md:tracking-normal md:mb-0">
         SCHADE AAN UW
       </span>
-      <span className="bg-clip-text text-transparent bg-[#d9204f] whitespace-nowrap font-black text-4xl md:text-7xl">
+      <span className="bg-clip-text text-transparent bg-[#E30613] whitespace-nowrap font-black text-4xl md:text-7xl">
         AUTORUIT?
       </span>
     </h1>
 
     {/* Tekst verbergen op mobiel (ongewijzigd) */}
-    <p className="hidden md:block text-xl text-[#3D56AE] max-w-lg leading-relaxed font-medium relative z-10 mt-6">
+    <p className="hidden md:block text-xl text-[#005CAB] max-w-lg leading-relaxed font-medium relative z-10 mt-6">
       Wij helpen u snel weer veilig op weg. Erkend door alle verzekeraars en specialist in regio Uden.
     </p>
 
@@ -259,7 +257,7 @@ export const Home: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
             <div
               className="absolute inset-0 opacity-[0.03]"
-              style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #3D56AE 1px, transparent 0)', backgroundSize: '24px 24px' }}
+              style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #005CAB 1px, transparent 0)', backgroundSize: '24px 24px' }}
             />
             <div className="flex items-center gap-5 relative z-10">
               <div className="hidden md:flex bg-blue-50 p-4 rounded-full border border-blue-100 text-agp-blue">
@@ -307,10 +305,10 @@ export const Home: React.FC = () => {
                     transition duration-500 
                     rounded-2xl 
                     border-[5px] lg:border-[10px] 
-                    border-[#3D56AE] 
+                    border-[#005CAB] 
                     bg-white p-1
                   ">
-                    <div className="w-full h-full rounded-xl border-[5px] lg:border-[10px] border-[#d9204f] bg-gray-50" />
+                    <div className="w-full h-full rounded-xl border-[5px] lg:border-[10px] border-[#E30613] bg-gray-50" />
                   </div>
 
                   <div className="relative overflow-hidden rounded-xl shadow-2xl aspect-[4/3] scale-[0.94] lg:scale-95 origin-center -translate-x-2 lg:translate-x-0">
