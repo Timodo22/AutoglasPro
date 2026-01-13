@@ -8,6 +8,7 @@ import { PartnerPage } from './pages/PartnerPage';
 import { Careers } from './pages/Careers';
 import { Contact } from './pages/Contact';
 import { Werkbon } from './pages/Werkbon';
+import { Intake } from './pages/Intake';
 
 // Scroll to top helper (houdt de pagina bovenaan bij navigatie)
 const ScrollToTop = () => {
@@ -31,6 +32,7 @@ const App: React.FC = () => {
           <Route path="/over-ons" element={<About />} />
           <Route path="/123ruit" element={<PartnerPage />} />
           <Route path="/werkbon" element={<Werkbon />} />
+          <Route path="/intake" element={<Intake />} />
           <Route path="/vacatures" element={<Careers />} />
           <Route path="/contact" element={<Contact />} />
           
