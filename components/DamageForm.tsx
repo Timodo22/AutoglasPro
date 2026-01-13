@@ -1,39 +1,108 @@
 import React, { useState } from 'react';
-// 1. Voeg 'Star' toe aan de imports
-import { Camera, Send, FileUp, Star } from 'lucide-react';
+import { Camera, Send, FileUp, Star, Loader2, Check, AlertCircle } from 'lucide-react';
+import imageCompression from 'browser-image-compression';
 
 export const DamageForm: React.FC = () => {
-  const [result, setResult] = useState<string>("");
-  // 2. Nieuwe state voor de sterren
+  // --- STATE ---
   const [stars, setStars] = useState(0);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  
+  // UI States
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState<{success: boolean, message: string} | null>(null);
 
+  // --- HANDLERS ---
+  
+  // Foto's selecteren
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setSelectedFiles(Array.from(event.target.files));
+    }
+  };
+
+  // Formulier versturen
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setResult("Verzenden....");
-    const formData = new FormData(event.currentTarget);
+    setIsSubmitting(true);
+    setResult(null); // Reset vorige resultaten
 
-    // Vergeet niet hier je eigen sleutel in te vullen!
-    formData.append("access_key", "YOUR_WEB3FORMS_ACCESS_KEY_HERE"); 
+    const form = event.currentTarget;
+    const rawData = new FormData(form);
+    const apiData = new FormData();
+
+    // 1. DATA KOPPELEN (Frontend velden -> API velden)
+    // De namen links ("Kenteken") moeten precies matchen met wat je in Worker.js gebruikt
+    apiData.append("Kenteken", (rawData.get("license_plate") as string).toUpperCase());
+    apiData.append("Naam", rawData.get("name") as string);
+    apiData.append("Email", rawData.get("email") as string);
+    apiData.append("Telefoon", rawData.get("phone") as string);
+    apiData.append("Opmerkingen", rawData.get("message") as string);
+    
+    // Vaste waarden voor dit formulier
+    apiData.append("Klant_Type", "Particulier / Website");
+    apiData.append("Type_Werk", "Online Schademelding");
+    
+    // Alleen sterren meesturen als er daadwerkelijk sterren zijn gekozen
+    if (stars > 0) {
+      apiData.append("Aantal_Sterren", stars.toString());
+    }
+
+    // 2. FOTO COMPRESSIE
+    const compressionOptions = {
+      maxSizeMB: 0.8,          // Max 0.8 MB per foto
+      maxWidthOrHeight: 1920,  // Max Full HD resolutie
+      useWebWorker: true,
+    };
 
     try {
-      const response = await fetch("https://api.web3forms.com/submit", {
+      if (selectedFiles.length > 0) {
+        // Loop door alle bestanden
+        for (const file of selectedFiles) {
+          try {
+            // Probeer te verkleinen
+            const compressedFile = await imageCompression(file, compressionOptions);
+            apiData.append("attachment", compressedFile, file.name);
+          } catch (error) {
+            console.warn("Compressie mislukt voor 1 foto, origineel wordt verstuurd:", error);
+            // Als verkleinen mislukt, stuur dan het origineel
+            apiData.append("attachment", file, file.name);
+          }
+        }
+      }
+
+      // 3. VERSTUREN NAAR JE CLOUDFLARE WORKER
+      const response = await fetch("https://autoglasproapi.timosteen22.workers.dev", {
         method: "POST",
-        body: formData
+        body: apiData
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setResult("Bedankt! Uw melding is succesvol ontvangen. Wij nemen spoedig contact op.");
-        (event.target as HTMLFormElement).reset();
-        setStars(0); // Reset ook de sterren na verzending
+        // SUCCES
+        setResult({ success: true, message: "Bedankt! Uw melding is succesvol ontvangen." });
+        form.reset();
+        setStars(0);
+        setSelectedFiles([]);
       } else {
-        console.error("Error", data);
-        setResult("Er ging iets mis. Probeer het later opnieuw of bel ons direct.");
+        // FOUT BIJ API (Bijv. Resend error of Code error)
+        console.error("API Fout details:", data);
+        setResult({ 
+          success: false, 
+          // Hier tonen we de échte foutmelding van de server
+          message: data.message || "Er ging iets mis bij de server. Probeer het later opnieuw." 
+        });
       }
-    } catch (error) {
-      console.error(error);
-      setResult("Er is een fout opgetreden. Controleer uw verbinding.");
+
+    } catch (error: any) {
+      // FOUT BIJ VERBINDING (Bijv. geen internet of URL fout)
+      console.error("Netwerk fout:", error);
+      setResult({ 
+        success: false, 
+        message: `Er is een verbindingsfout opgetreden: ${error.message || error}` 
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -54,7 +123,6 @@ export const DamageForm: React.FC = () => {
         </p>
 
         <form onSubmit={onSubmit} className="space-y-6">
-          <input type="hidden" name="subject" value="Nieuwe Schademelding via Website" />
           
           {/* Kenteken & Telefoon */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -114,7 +182,7 @@ export const DamageForm: React.FC = () => {
             </div>
           </div>
 
-          {/* 3. NIEUW: AANTAL STERREN SECTIE */}
+          {/* STERREN SECTIE */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Aantal sterren (indien van toepassing)</label>
             <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -122,7 +190,7 @@ export const DamageForm: React.FC = () => {
                 {[1, 2, 3, 4].map((num) => (
                   <button
                     key={num}
-                    type="button" // Belangrijk: type="button" voorkomt dat het formulier verstuurt bij klikken
+                    type="button"
                     onClick={() => setStars(num)}
                     className="focus:outline-none transition-transform active:scale-90"
                   >
@@ -137,8 +205,6 @@ export const DamageForm: React.FC = () => {
                   </button>
                 ))}
               </div>
-              {/* Hidden input om de waarde mee te sturen naar Web3Forms */}
-              <input type="hidden" name="aantal_sterren" value={stars} />
               <p className="text-center text-gray-500 text-sm font-medium tracking-wide">
                 {stars > 0 ? `${stars} ${stars === 1 ? 'ster' : 'sterren'} geselecteerd` : 'Tik op de sterren om te selecteren'}
               </p>
@@ -147,17 +213,25 @@ export const DamageForm: React.FC = () => {
 
           {/* Foto upload */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Foto's uploaden (optioneel)</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Foto's uploaden {selectedFiles.length > 0 && <span className="text-agp-blue">({selectedFiles.length} geselecteerd)</span>}
+            </label>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition cursor-pointer relative group">
               <input 
                 type="file" 
                 name="attachment" 
                 accept="image/*" 
                 multiple
+                onChange={handleFileChange}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
               />
               <FileUp className="w-8 h-8 text-gray-400 mx-auto mb-2 group-hover:text-agp-blue transition" />
-              <p className="text-sm text-gray-500 group-hover:text-agp-blue transition">Klik om foto's van de schade te selecteren</p>
+              <p className="text-sm text-gray-500 group-hover:text-agp-blue transition">
+                {selectedFiles.length > 0 
+                  ? "Klik om foto's te wijzigen of toe te voegen" 
+                  : "Klik om foto's van de schade te selecteren"
+                }
+              </p>
             </div>
           </div>
 
@@ -172,17 +246,35 @@ export const DamageForm: React.FC = () => {
             ></textarea>
           </div>
 
+          {/* SUBMIT BUTTON */}
           <button 
             type="submit" 
-            className="w-full py-4 px-6 bg-agp-red text-white font-bold text-lg rounded-lg shadow-lg hover:bg-red-700 transition duration-300 flex items-center justify-center gap-2 group border-b-4 border-red-800 active:border-b-0 active:translate-y-1"
+            disabled={isSubmitting}
+            className={`
+              w-full py-4 px-6 text-white font-bold text-lg rounded-lg shadow-lg flex items-center justify-center gap-2 transition duration-300
+              ${isSubmitting 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-agp-red hover:bg-red-700 border-b-4 border-red-800 active:border-b-0 active:translate-y-1 group'
+              }
+            `}
           >
-            <span>Verstuur Melding</span>
-            <Send className="w-5 h-5 group-hover:translate-x-1 transition" />
+            {isSubmitting ? (
+              <>
+                <Loader2 className="animate-spin" /> Verwerken...
+              </>
+            ) : (
+              <>
+                <span>Verstuur Melding</span>
+                <Send className="w-5 h-5 group-hover:translate-x-1 transition" />
+              </>
+            )}
           </button>
 
+          {/* RESULT MESSAGE (Toont nu de echte foutmelding!) */}
           {result && (
-            <div className={`p-4 rounded-lg text-center font-medium ${result.includes("Bedankt") ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"}`}>
-              {result}
+            <div className={`p-4 rounded-lg flex items-start gap-3 mt-4 ${result.success ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"}`}>
+              {result.success ? <Check className="shrink-0" /> : <AlertCircle className="shrink-0" />}
+              <span className="font-medium">{result.message}</span>
             </div>
           )}
         </form>
