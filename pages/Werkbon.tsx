@@ -212,6 +212,14 @@ export const Werkbon: React.FC = () => {
                 ))}
               </div>
             </div>
+            // Voeg dit toe boven de return
+<style>
+  {`
+    .fixed.bottom-6.right-6.z-50.group {
+      display: none !important;
+    }
+  `}
+</style>
 
             {/* FOTO UPLOAD */}
             <div className="mb-8">
