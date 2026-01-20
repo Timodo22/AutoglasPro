@@ -5,6 +5,69 @@ import {
 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 
+// --- HELPER FUNCTIE VOOR DATUM/TIJD IN BRANDEN ---
+const addTimestampToImage = async (imageFile: File): Promise<File> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(imageFile);
+    
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(imageFile);
+
+      // Canvas grootte instellen op foto grootte
+      canvas.width = img.width;
+      canvas.height = img.height;
+
+      // Foto tekenen
+      ctx.drawImage(img, 0, 0);
+
+      // --- TEKST INSTELLINGEN ---
+      // Dynamische grootte gebaseerd op foto breedte (2.5% van de breedte)
+      const fontSize = Math.floor(canvas.width * 0.025); 
+      ctx.font = `bold ${fontSize}px Arial`;
+      ctx.fillStyle = '#FFD700'; // Goud/Geel
+      ctx.strokeStyle = 'black'; // Zwarte rand voor leesbaarheid
+      ctx.lineWidth = Math.floor(fontSize / 6);
+      ctx.textBaseline = 'bottom';
+      ctx.textAlign = 'right';
+
+      // De datum en tijd ophalen van het bestand
+      const dateObj = new Date(imageFile.lastModified);
+      
+      // Formatteren: DD-MM-YYYY HH:MM
+      const dateStr = dateObj.toLocaleDateString('nl-NL');
+      const timeStr = dateObj.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+      const text = `${dateStr} ${timeStr}`;
+
+      // Marges bepalen (rechtsonder)
+      const margin = Math.floor(canvas.width * 0.02);
+      const x = canvas.width - margin;
+      const y = canvas.height - margin;
+
+      // Tekst tekenen (eerst rand, dan vulling)
+      ctx.strokeText(text, x, y);
+      ctx.fillText(text, x, y);
+
+      // Terug omzetten naar File
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const newFile = new File([blob], imageFile.name, {
+            type: 'image/jpeg',
+            lastModified: dateObj.getTime(), // Behoud de originele tijd in metadata
+          });
+          resolve(newFile);
+        } else {
+          resolve(imageFile);
+        }
+      }, 'image/jpeg', 0.90); // Kwaliteit na tekenen
+    };
+
+    img.onerror = () => resolve(imageFile);
+  });
+};
+
 export const Werkbon: React.FC = () => {
   // --- STATE ---
   const [kenteken, setKenteken] = useState('');
@@ -77,10 +140,24 @@ export const Werkbon: React.FC = () => {
 
     try {
       if (selectedFiles.length > 0) {
-        console.log(`Start comprimeren van ${selectedFiles.length} foto's...`);
+        console.log(`Start verwerken van ${selectedFiles.length} foto's...`);
+        
         for (const file of selectedFiles) {
-          const compressedFile = await imageCompression(file, options);
-          formData.append("attachment", compressedFile, file.name);
+          // 1. Eerst comprimeren
+          const compressedBlob = await imageCompression(file, options);
+          
+          // 2. Maak er weer een File van EN zet de originele datum terug
+          // (imageCompression maakt er een nieuwe datum van, dat willen we niet voor de timestamp)
+          const fileWithOriginalTime = new File([compressedBlob], file.name, {
+             type: compressedBlob.type,
+             lastModified: file.lastModified 
+          });
+
+          // 3. Nu de datum in de pixels branden
+          const stampedFile = await addTimestampToImage(fileWithOriginalTime);
+
+          // 4. Toevoegen aan form data
+          formData.append("attachment", stampedFile, file.name);
         }
       }
 
@@ -117,7 +194,7 @@ export const Werkbon: React.FC = () => {
             <Check size={40} strokeWidth={3} />
           </div>
           <h2 className="text-3xl font-black text-gray-800 mb-2">Werkbon Verstuurd!</h2>
-          <p className="text-gray-500 mb-8">De werkbon en foto's zijn succesvol verzonden.</p>
+          <p className="text-gray-500 mb-8">De werkbon en foto's (met datumstempel) zijn succesvol verzonden.</p>
           <button onClick={() => window.location.reload()} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition">
             Nieuwe Werkbon Starten
           </button>
@@ -212,14 +289,14 @@ export const Werkbon: React.FC = () => {
                 ))}
               </div>
             </div>
-            // Voeg dit toe boven de return
-<style>
-  {`
-    .fixed.bottom-6.right-6.z-50.group {
-      display: none !important;
-    }
-  `}
-</style>
+
+            <style>
+              {`
+                .fixed.bottom-6.right-6.z-50.group {
+                  display: none !important;
+                }
+              `}
+            </style>
 
             {/* FOTO UPLOAD */}
             <div className="mb-8">
@@ -231,6 +308,7 @@ export const Werkbon: React.FC = () => {
                     <div className="p-3 bg-white rounded-full shadow-sm group-hover:scale-110 transition"><Camera className="text-blue-600" size={24} /></div>
                   </div>
                   <span className="block font-bold text-blue-900">Klik om foto's toe te voegen</span>
+                  <span className="block text-xs text-gray-400 mt-1">Datum & Tijd worden automatisch ingebrand</span>
                 </label>
               </div>
               {previews.length > 0 && (
