@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
 import { 
   ClipboardList, Car, CheckCircle, AlertCircle, Send, Star, 
-  Camera, Trash2, Building2, Shield, Loader2, Check 
+  Camera, Trash2, Building2, Shield, Loader2, Check, FileBarChart 
 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 
-// --- HELPER FUNCTIE VOOR DATUM/TIJD IN BRANDEN ---
+// --- HELPER: FORMATTEER BYTES ---
+const formatBytes = (bytes: number, decimals = 1) => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
+
+// --- HELPER: DATUM/TIJD IN BRANDEN ---
 const addTimestampToImage = async (imageFile: File): Promise<File> => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -16,52 +26,43 @@ const addTimestampToImage = async (imageFile: File): Promise<File> => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return resolve(imageFile);
 
-      // Canvas grootte instellen op foto grootte
       canvas.width = img.width;
       canvas.height = img.height;
 
-      // Foto tekenen
       ctx.drawImage(img, 0, 0);
 
-      // --- TEKST INSTELLINGEN ---
-      // Dynamische grootte gebaseerd op foto breedte (2.5% van de breedte)
-      const fontSize = Math.floor(canvas.width * 0.025); 
+      // Tekst instellingen
+      const fontSize = Math.floor(canvas.width * 0.03); // Iets groter lettertype voor leesbaarheid bij lagere resolutie
       ctx.font = `bold ${fontSize}px Arial`;
-      ctx.fillStyle = '#FFD700'; // Goud/Geel
-      ctx.strokeStyle = 'black'; // Zwarte rand voor leesbaarheid
+      ctx.fillStyle = '#FFD700'; 
+      ctx.strokeStyle = 'black'; 
       ctx.lineWidth = Math.floor(fontSize / 6);
       ctx.textBaseline = 'bottom';
       ctx.textAlign = 'right';
 
-      // De datum en tijd ophalen van het bestand
       const dateObj = new Date(imageFile.lastModified);
-      
-      // Formatteren: DD-MM-YYYY HH:MM
       const dateStr = dateObj.toLocaleDateString('nl-NL');
       const timeStr = dateObj.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
       const text = `${dateStr} ${timeStr}`;
 
-      // Marges bepalen (rechtsonder)
       const margin = Math.floor(canvas.width * 0.02);
       const x = canvas.width - margin;
       const y = canvas.height - margin;
 
-      // Tekst tekenen (eerst rand, dan vulling)
       ctx.strokeText(text, x, y);
       ctx.fillText(text, x, y);
 
-      // Terug omzetten naar File
       canvas.toBlob((blob) => {
         if (blob) {
           const newFile = new File([blob], imageFile.name, {
             type: 'image/jpeg',
-            lastModified: dateObj.getTime(), // Behoud de originele tijd in metadata
+            lastModified: dateObj.getTime(),
           });
           resolve(newFile);
         } else {
           resolve(imageFile);
         }
-      }, 'image/jpeg', 0.90); // Kwaliteit na tekenen
+      }, 'image/jpeg', 0.60); // <-- HIER STAAT DE KWALITEIT NU OP 60% (was 90%)
     };
 
     img.onerror = () => resolve(imageFile);
@@ -85,8 +86,16 @@ export const Werkbon: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // --- HANDLERS ---
+  // --- CALCULATIES ---
+  const totalOriginalSize = selectedFiles.reduce((acc, file) => acc + file.size, 0);
+  
+  // Schatting: We targetten nu 0.3MB (300KB)
+  const estimatedCompressedSize = selectedFiles.reduce((acc, file) => {
+    const targetSize = 0.3 * 1024 * 1024; // 0.3 MB
+    return acc + Math.min(file.size, targetSize);
+  }, 0);
 
+  // --- HANDLERS ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
@@ -113,29 +122,28 @@ export const Werkbon: React.FC = () => {
 
     const formData = new FormData();
 
-    // Data velden
     formData.append("Klant_Type", customerType);
     formData.append("Kenteken", kenteken.toUpperCase());
     formData.append("Type_Werk", workType);
     
-    // BELANGRIJK: Hier sturen we de sterren mee als het reparatie is
     if (workType === 'Reparatie' && stars > 0) {
         formData.append("Aantal_Sterren", stars.toString());
     }
     
     formData.append("Opmerkingen", remarks);
 
-    // Checkboxes
     const formElement = e.currentTarget;
     const checkboxes = formElement.querySelectorAll('input[type="checkbox"]:checked');
     checkboxes.forEach((checkbox) => {
       formData.append((checkbox as HTMLInputElement).name, "Ja");
     });
 
+    // --- DE NIEUWE COMPRESSIE INSTELLINGEN ---
     const options = {
-      maxSizeMB: 0.8,
-      maxWidthOrHeight: 1920,
+      maxSizeMB: 0.3,          // Maximaal 300KB per foto
+      maxWidthOrHeight: 1280,  // Max 1280px breed of hoog (Prima voor HD scherm)
       useWebWorker: true,
+      fileType: "image/jpeg"
     };
 
     try {
@@ -143,20 +151,17 @@ export const Werkbon: React.FC = () => {
         console.log(`Start verwerken van ${selectedFiles.length} foto's...`);
         
         for (const file of selectedFiles) {
-          // 1. Eerst comprimeren
+          // 1. Verkleinen en eerste compressie slag
           const compressedBlob = await imageCompression(file, options);
           
-          // 2. Maak er weer een File van EN zet de originele datum terug
-          // (imageCompression maakt er een nieuwe datum van, dat willen we niet voor de timestamp)
           const fileWithOriginalTime = new File([compressedBlob], file.name, {
              type: compressedBlob.type,
              lastModified: file.lastModified 
           });
 
-          // 3. Nu de datum in de pixels branden
+          // 2. Datum inbranden & definitieve compressie (60% kwaliteit)
           const stampedFile = await addTimestampToImage(fileWithOriginalTime);
-
-          // 4. Toevoegen aan form data
+          
           formData.append("attachment", stampedFile, file.name);
         }
       }
@@ -194,7 +199,7 @@ export const Werkbon: React.FC = () => {
             <Check size={40} strokeWidth={3} />
           </div>
           <h2 className="text-3xl font-black text-gray-800 mb-2">Werkbon Verstuurd!</h2>
-          <p className="text-gray-500 mb-8">De werkbon en foto's (met datumstempel) zijn succesvol verzonden.</p>
+          <p className="text-gray-500 mb-8">De werkbon en {selectedFiles.length} foto's zijn succesvol verkleind en verzonden.</p>
           <button onClick={() => window.location.reload()} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition">
             Nieuwe Werkbon Starten
           </button>
@@ -300,22 +305,47 @@ export const Werkbon: React.FC = () => {
 
             {/* FOTO UPLOAD */}
             <div className="mb-8">
-              <label className="block text-sm font-bold text-gray-700 uppercase mb-2 ml-1 flex items-center gap-2"><Camera size={18} /> Foto's ({selectedFiles.length})</label>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 bg-gray-50 hover:bg-blue-50 hover:border-blue-400 transition text-center group">
+              <div className="flex justify-between items-end mb-2 ml-1">
+                <label className="block text-sm font-bold text-gray-700 uppercase flex items-center gap-2">
+                  <Camera size={18} /> Foto's ({selectedFiles.length})
+                </label>
+              </div>
+
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 bg-gray-50 hover:bg-blue-50 hover:border-blue-400 transition text-center group relative">
                 <input type="file" id="file-upload" multiple accept="image/*" onChange={handleFileChange} className="hidden" />
                 <label htmlFor="file-upload" className="cursor-pointer block w-full h-full">
                   <div className="mb-3 flex justify-center">
                     <div className="p-3 bg-white rounded-full shadow-sm group-hover:scale-110 transition"><Camera className="text-blue-600" size={24} /></div>
                   </div>
                   <span className="block font-bold text-blue-900">Klik om foto's toe te voegen</span>
-                  <span className="block text-xs text-gray-400 mt-1">Datum & Tijd worden automatisch ingebrand</span>
+                  <span className="block text-xs text-gray-400 mt-1">Met datumstempel & max compressie</span>
                 </label>
               </div>
+
+              {/* DATA GEBRUIK BALKJE */}
+              {selectedFiles.length > 0 && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between text-xs md:text-sm text-blue-800">
+                   <div className="flex items-center gap-2">
+                      <FileBarChart size={16} />
+                      <span className="font-bold">Org:</span> {formatBytes(totalOriginalSize)}
+                   </div>
+                   <div className="flex items-center gap-2">
+                      <span className="font-bold text-green-700">Geschat:</span> ~{formatBytes(estimatedCompressedSize)}
+                   </div>
+                </div>
+              )}
+
               {previews.length > 0 && (
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   {previews.map((src, index) => (
                     <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group">
                       <img src={src} alt="Preview" className="w-full h-full object-cover" />
+                      
+                      {/* Grootte per foto overlay */}
+                      <div className="absolute bottom-0 left-0 bg-black/60 text-white text-[10px] px-2 py-1 rounded-tr-lg">
+                        {formatBytes(selectedFiles[index].size)}
+                      </div>
+
                       <button type="button" onClick={() => removePhoto(index)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="text-white w-8 h-8" /></button>
                     </div>
                   ))}
@@ -338,7 +368,7 @@ export const Werkbon: React.FC = () => {
             )}
 
             <button type="submit" disabled={isSubmitting} className={`w-full text-white font-black py-5 rounded-xl shadow-lg flex items-center justify-center gap-3 text-xl transition-all ${isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 shadow-red-200 transform hover:-translate-y-1'}`}>
-              {isSubmitting ? <><Loader2 size={24} className="animate-spin" /> Verwerken...</> : <>Werkbon Versturen <Send size={24} /></>}
+              {isSubmitting ? <><Loader2 size={24} className="animate-spin" /> Comprimeren & Versturen...</> : <>Werkbon Versturen <Send size={24} /></>}
             </button>
           </form>
         </div>
