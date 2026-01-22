@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   ClipboardList, Car, CheckCircle, AlertCircle, Send, Star, 
-  Camera, Trash2, Building2, Shield, Loader2, Check, FileBarChart 
+  Camera, Trash2, Building2, Shield, Loader2, Check, FileBarChart, Calendar 
 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 
@@ -32,7 +32,7 @@ const addTimestampToImage = async (imageFile: File): Promise<File> => {
       ctx.drawImage(img, 0, 0);
 
       // Tekst instellingen
-      const fontSize = Math.floor(canvas.width * 0.03); // Iets groter lettertype voor leesbaarheid bij lagere resolutie
+      const fontSize = Math.floor(canvas.width * 0.03); 
       ctx.font = `bold ${fontSize}px Arial`;
       ctx.fillStyle = '#FFD700'; 
       ctx.strokeStyle = 'black'; 
@@ -62,7 +62,7 @@ const addTimestampToImage = async (imageFile: File): Promise<File> => {
         } else {
           resolve(imageFile);
         }
-      }, 'image/jpeg', 0.60); // <-- HIER STAAT DE KWALITEIT NU OP 60% (was 90%)
+      }, 'image/jpeg', 0.60); 
     };
 
     img.onerror = () => resolve(imageFile);
@@ -77,6 +77,9 @@ export const Werkbon: React.FC = () => {
   const [customerType, setCustomerType] = useState('B2B');
   const [remarks, setRemarks] = useState('');
   
+  // Nieuwe state voor Datum (standaard op vandaag)
+  const [workDate, setWorkDate] = useState(new Date().toISOString().split('T')[0]);
+  
   // File state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -89,7 +92,6 @@ export const Werkbon: React.FC = () => {
   // --- CALCULATIES ---
   const totalOriginalSize = selectedFiles.reduce((acc, file) => acc + file.size, 0);
   
-  // Schatting: We targetten nu 0.3MB (300KB)
   const estimatedCompressedSize = selectedFiles.reduce((acc, file) => {
     const targetSize = 0.3 * 1024 * 1024; // 0.3 MB
     return acc + Math.min(file.size, targetSize);
@@ -125,6 +127,7 @@ export const Werkbon: React.FC = () => {
     formData.append("Klant_Type", customerType);
     formData.append("Kenteken", kenteken.toUpperCase());
     formData.append("Type_Werk", workType);
+    formData.append("Datum", workDate); // Datum toevoegen aan form data
     
     if (workType === 'Reparatie' && stars > 0) {
         formData.append("Aantal_Sterren", stars.toString());
@@ -138,10 +141,9 @@ export const Werkbon: React.FC = () => {
       formData.append((checkbox as HTMLInputElement).name, "Ja");
     });
 
-    // --- DE NIEUWE COMPRESSIE INSTELLINGEN ---
     const options = {
-      maxSizeMB: 0.3,          // Maximaal 300KB per foto
-      maxWidthOrHeight: 1280,  // Max 1280px breed of hoog (Prima voor HD scherm)
+      maxSizeMB: 0.3,
+      maxWidthOrHeight: 1280,
       useWebWorker: true,
       fileType: "image/jpeg"
     };
@@ -151,7 +153,6 @@ export const Werkbon: React.FC = () => {
         console.log(`Start verwerken van ${selectedFiles.length} foto's...`);
         
         for (const file of selectedFiles) {
-          // 1. Verkleinen en eerste compressie slag
           const compressedBlob = await imageCompression(file, options);
           
           const fileWithOriginalTime = new File([compressedBlob], file.name, {
@@ -159,7 +160,6 @@ export const Werkbon: React.FC = () => {
              lastModified: file.lastModified 
           });
 
-          // 2. Datum inbranden & definitieve compressie (60% kwaliteit)
           const stampedFile = await addTimestampToImage(fileWithOriginalTime);
           
           formData.append("attachment", stampedFile, file.name);
@@ -217,7 +217,7 @@ export const Werkbon: React.FC = () => {
           <div className="inline-flex items-center justify-center p-3 bg-blue-600 text-white rounded-xl mb-4 shadow-lg">
             <ClipboardList size={32} />
           </div>
-          <h1 className="text-4xl font-black text-blue-900 uppercase tracking-tight">Digitale Werkbon</h1>
+          <h1 className="text-4xl font-black text-blue-900 uppercase tracking-tight">Digitale Werkbon aanpassen</h1>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
@@ -278,6 +278,23 @@ export const Werkbon: React.FC = () => {
                   <span className="block font-black text-xl text-gray-800 uppercase">Ruit Vervangen</span>
                 </div>
               </label>
+            </div>
+
+            {/* NIEUW: DATUM VELD */}
+            <div className="mb-8">
+              <label className="block text-sm font-bold text-gray-700 uppercase mb-2 ml-1">Datum Uitvoering</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                  <Calendar size={20} />
+                </div>
+                <input 
+                  type="date" 
+                  required 
+                  value={workDate} 
+                  onChange={(e) => setWorkDate(e.target.value)} 
+                  className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 text-gray-800 font-bold text-lg rounded-lg focus:border-blue-600 outline-none" 
+                />
+              </div>
             </div>
 
             <hr className="my-8 border-gray-100" />
