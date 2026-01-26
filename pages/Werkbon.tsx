@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ClipboardList, Car, CheckCircle, AlertCircle, Send, Star, 
   Camera, Trash2, Building2, Shield, Loader2, Check, FileBarChart, Calendar 
@@ -88,6 +88,26 @@ export const Werkbon: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // --- CUSTOM ICON LOGICA ---
+// --- CUSTOM ICON LOGICA ---
+  useEffect(() => {
+    const changeIcon = (iconName: string) => {
+      const appleIcon = document.getElementById('app-icon') as HTMLLinkElement;
+      const favIcon = document.getElementById('fav-icon') as HTMLLinkElement;
+      
+      if (appleIcon) appleIcon.href = iconName;
+      if (favIcon) favIcon.href = iconName;
+    };
+
+    // 1. Zet icoon op werkbonlogo bij binnenkomst
+    changeIcon('/werkbonlogo.png'); 
+
+    // 2. Zet terug naar standaard bij verlaten
+    return () => {
+      changeIcon('/Logo5.png'); // Pas aan naar je standaard logo
+    };
+  }, []);
 
   // --- CALCULATIES ---
   const totalOriginalSize = selectedFiles.reduce((acc, file) => acc + file.size, 0);
