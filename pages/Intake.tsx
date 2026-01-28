@@ -1,20 +1,100 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mail, Send, Paperclip, User, FileText, Loader2, CheckCircle, AlertCircle, Car, Phone, MapPin, Briefcase, Wrench, CreditCard } from 'lucide-react';
+import { 
+  Mail, Send, User, FileText, Loader2, CheckCircle, AlertCircle, 
+  Car, Phone, MapPin, Briefcase, Wrench, CreditCard, 
+  Camera, Trash2, FileBarChart 
+} from 'lucide-react';
+import imageCompression from 'browser-image-compression';
 // Zorg dat dit pad klopt naar jouw logo
 import Logo from '../assets/AutoglasPRO-logo-2.png';
 
+// --- HELPER: FORMATTEER BYTES (Overgenomen uit Werkbon) ---
+const formatBytes = (bytes: number, decimals = 1) => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
+
+// --- HELPER: DATUM/TIJD IN BRANDEN (Overgenomen uit Werkbon) ---
+const addTimestampToImage = async (imageFile: File): Promise<File> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(imageFile);
+    
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(imageFile);
+
+      canvas.width = img.width;
+      canvas.height = img.height;
+
+      ctx.drawImage(img, 0, 0);
+
+      // Tekst instellingen
+      const fontSize = Math.floor(canvas.width * 0.03); 
+      ctx.font = `bold ${fontSize}px Arial`;
+      ctx.fillStyle = '#FFD700'; 
+      ctx.strokeStyle = 'black'; 
+      ctx.lineWidth = Math.floor(fontSize / 6);
+      ctx.textBaseline = 'bottom';
+      ctx.textAlign = 'right';
+
+      const dateObj = new Date(imageFile.lastModified);
+      const dateStr = dateObj.toLocaleDateString('nl-NL');
+      const timeStr = dateObj.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+      const text = `${dateStr} ${timeStr}`;
+
+      const margin = Math.floor(canvas.width * 0.02);
+      const x = canvas.width - margin;
+      const y = canvas.height - margin;
+
+      ctx.strokeText(text, x, y);
+      ctx.fillText(text, x, y);
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const newFile = new File([blob], imageFile.name, {
+            type: 'image/jpeg',
+            lastModified: dateObj.getTime(),
+          });
+          resolve(newFile);
+        } else {
+          resolve(imageFile);
+        }
+      }, 'image/jpeg', 0.60); 
+    };
+
+    img.onerror = () => resolve(imageFile);
+  });
+};
+
 export const Intake: React.FC = () => {
+  // --- STATE ---
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{success: boolean, message: string} | null>(null);
-  const [files, setFiles] = useState<File[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
 
   // State voor dynamische velden
   const [jobType, setJobType] = useState<string>("");
   const [billingType, setBillingType] = useState<string>("");
 
+  // State voor bestanden (Nieuw)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+
+  // --- CALCULATIES ---
+  const totalOriginalSize = selectedFiles.reduce((acc, file) => acc + file.size, 0);
+  
+  const estimatedCompressedSize = selectedFiles.reduce((acc, file) => {
+    const targetSize = 0.3 * 1024 * 1024; // 0.3 MB per foto doel
+    return acc + Math.min(file.size, targetSize);
+  }, 0);
+
   // --- CUSTOM ICON LOGICA ---
-// --- CUSTOM ICON LOGICA ---
   useEffect(() => {
     const changeIcon = (iconName: string) => {
       const appleIcon = document.getElementById('app-icon') as HTMLLinkElement;
@@ -24,29 +104,45 @@ export const Intake: React.FC = () => {
       if (favIcon) favIcon.href = iconName;
     };
 
-    // 1. Zet icoon op intakelogo bij binnenkomst
     changeIcon('/intakelogo.png'); 
 
-    // 2. Zet terug naar een standaard logo bij verlaten (bijv. Logo5 of een andere)
-    // Als je geen standaard hebt, kun je deze regels weglaten of naar intakelogo laten wijzen.
     return () => {
-      changeIcon('/Logo5.png'); // Pas dit aan naar je algemene logo (dat ook in public staat)
+      changeIcon('/Logo5.png'); 
     };
   }, []);
 
+  // --- BESTAND HANDLERS ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFiles(Array.from(e.target.files));
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      setSelectedFiles(prev => [...prev, ...newFiles]);
+      const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+      setPreviews(prev => [...prev, ...newPreviews]);
     }
   };
 
+  const removePhoto = (index: number) => {
+    const newFiles = [...selectedFiles];
+    const newPreviews = [...previews];
+    
+    // Revoke object URL om geheugen vrij te maken
+    URL.revokeObjectURL(newPreviews[index]);
+
+    newFiles.splice(index, 1);
+    newPreviews.splice(index, 1);
+    
+    setSelectedFiles(newFiles);
+    setPreviews(newPreviews);
+  };
+
+  // --- SUBMIT HANDLER ---
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setResult(null);
 
     const formData = new FormData(e.currentTarget);
     
-    // --- VALIDATIE: Kenteken OF Chassisnummer verplicht ---
+    // Validatie: Kenteken OF Chassis
     const kenteken = formData.get("Kenteken")?.toString().trim();
     const chassis = formData.get("Chassis")?.toString().trim();
 
@@ -55,17 +151,49 @@ export const Intake: React.FC = () => {
         success: false, 
         message: "Vul minimaal een Kenteken OF een Chassisnummer in." 
       });
-      // Scroll naar boven
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
     setIsSubmitting(true);
 
-    // We sturen een nieuw type werk mee zodat de API weet dat dit het uitgebreide formulier is
+    // Standaard velden
     formData.append("Type_Werk", "Intake_Nieuw"); 
+    
+    // Verwijder eventuele lege bestand-inputs die HTML standaard meegeeft
+    formData.delete("attachment");
+
+    // --- FOTO VERWERKING (Uit Werkbon) ---
+    const options = {
+      maxSizeMB: 0.3,
+      maxWidthOrHeight: 1280,
+      useWebWorker: true,
+      fileType: "image/jpeg"
+    };
 
     try {
+      if (selectedFiles.length > 0) {
+        console.log(`Start verwerken van ${selectedFiles.length} foto's...`);
+        
+        for (const file of selectedFiles) {
+          // 1. Comprimeren
+          const compressedBlob = await imageCompression(file, options);
+          
+          const fileWithOriginalTime = new File([compressedBlob], file.name, {
+             type: compressedBlob.type,
+             lastModified: file.lastModified 
+          });
+
+          // 2. Datumstempel toevoegen
+          const stampedFile = await addTimestampToImage(fileWithOriginalTime);
+          
+          // 3. Toevoegen aan FormData
+          formData.append("attachment", stampedFile, file.name);
+        }
+      }
+
+      console.log("Uploaden naar Cloudflare Worker...");
+
       const response = await fetch("https://autoglasproapi.timosteen22.workers.dev", {
         method: "POST",
         body: formData
@@ -76,7 +204,8 @@ export const Intake: React.FC = () => {
       if (data.success) {
         setResult({ success: true, message: "Intake succesvol verzonden!" });
         formRef.current?.reset();
-        setFiles([]);
+        setSelectedFiles([]);
+        setPreviews([]);
         setJobType("");
         setBillingType("");
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -85,6 +214,7 @@ export const Intake: React.FC = () => {
       }
     } catch (error: any) {
       setResult({ success: false, message: "Netwerkfout: " + error.message });
+      console.error(error);
     } finally {
       setIsSubmitting(false);
     }
@@ -273,20 +403,64 @@ export const Intake: React.FC = () => {
             )}
           </section>
 
-          {/* 5. BESTANDEN & OPMERKINGEN */}
+          {/* 5. BESTANDEN & OPMERKINGEN (GEUPDATE MET PREVIEWS) */}
           <section className="space-y-4">
              <div>
               <label className="block text-sm font-bold text-gray-700 mb-1">Extra Opmerkingen</label>
               <textarea name="Opmerkingen" rows={3} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]"></textarea>
              </div>
 
-             <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 hover:bg-blue-50 transition-all text-center cursor-pointer relative group">
-              <input type="file" name="attachment" multiple onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-              <div className="flex flex-col items-center">
-                <Paperclip className="text-gray-400 group-hover:text-[#005CAB] mb-2" />
-                <span className="text-gray-700 font-bold">{files.length > 0 ? `${files.length} bestand(en)` : "Foto's / Bijlagen toevoegen"}</span>
-              </div>
-            </div>
+             <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+               <Camera size={18} /> Foto's & Bijlagen
+             </label>
+
+             {/* Nieuwe Upload UI */}
+             <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 bg-gray-50 hover:bg-blue-50 hover:border-blue-400 transition text-center group relative">
+                <input type="file" id="file-upload" multiple accept="image/*" onChange={handleFileChange} className="hidden" />
+                <label htmlFor="file-upload" className="cursor-pointer block w-full h-full">
+                  <div className="mb-3 flex justify-center">
+                    <div className="p-3 bg-white rounded-full shadow-sm group-hover:scale-110 transition">
+                        <Camera className="text-[#005CAB]" size={24} />
+                    </div>
+                  </div>
+                  <span className="block font-bold text-[#005CAB]">Klik om foto's toe te voegen</span>
+                  <span className="block text-xs text-gray-400 mt-1">Meerdere selectie mogelijk • Auto-compressie</span>
+                </label>
+             </div>
+
+             {/* DATA GEBRUIK BALKJE */}
+             {selectedFiles.length > 0 && (
+                <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between text-xs md:text-sm text-blue-800">
+                   <div className="flex items-center gap-2">
+                      <FileBarChart size={16} />
+                      <span className="font-bold">Org:</span> {formatBytes(totalOriginalSize)}
+                   </div>
+                   <div className="flex items-center gap-2">
+                      <span className="font-bold text-green-700">Geschat:</span> ~{formatBytes(estimatedCompressedSize)}
+                   </div>
+                </div>
+             )}
+
+             {/* PREVIEWS */}
+             {previews.length > 0 && (
+                <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mt-4">
+                   {previews.map((src, index) => (
+                      <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group shadow-sm">
+                         <img src={src} alt="Preview" className="w-full h-full object-cover" />
+                         
+                         {/* Grootte overlay */}
+                         <div className="absolute bottom-0 left-0 bg-black/60 text-white text-[10px] px-2 py-1 rounded-tr-lg">
+                            {formatBytes(selectedFiles[index].size)}
+                         </div>
+
+                         {/* Verwijder knop */}
+                         <button type="button" onClick={() => removePhoto(index)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Trash2 className="text-white w-8 h-8" />
+                         </button>
+                      </div>
+                   ))}
+                </div>
+             )}
           </section>
 
           {/* Submit Button */}
@@ -295,7 +469,7 @@ export const Intake: React.FC = () => {
             disabled={isSubmitting}
             className={`w-full text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-lg transition-all ${isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#E30613] hover:bg-red-700 hover:-translate-y-1'}`}
           >
-            {isSubmitting ? <><Loader2 className="animate-spin" /> Verwerken...</> : <><Send size={20} /> Opdracht Versturen</>}
+            {isSubmitting ? <><Loader2 className="animate-spin" /> Verwerken & Versturen...</> : <><Send size={20} /> Opdracht Versturen</>}
           </button>
 
         </form>
@@ -303,3 +477,5 @@ export const Intake: React.FC = () => {
     </div>
   );
 };
+
+export default Intake;
