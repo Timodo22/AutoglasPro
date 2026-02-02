@@ -31,7 +31,6 @@ const addTimestampToImage = async (imageFile: File): Promise<File> => {
 
       ctx.drawImage(img, 0, 0);
 
-      // Tekst instellingen
       const fontSize = Math.floor(canvas.width * 0.03); 
       ctx.font = `bold ${fontSize}px Arial`;
       ctx.fillStyle = '#FFD700'; 
@@ -76,48 +75,31 @@ export const Werkbon: React.FC = () => {
   const [workType, setWorkType] = useState(''); 
   const [customerType, setCustomerType] = useState('B2B');
   const [remarks, setRemarks] = useState('');
-  
-  // Nieuwe state voor Datum (standaard op vandaag)
   const [workDate, setWorkDate] = useState(new Date().toISOString().split('T')[0]);
   
-  // File state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   
-  // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // --- CUSTOM ICON LOGICA ---
-// --- CUSTOM ICON LOGICA ---
   useEffect(() => {
     const changeIcon = (iconName: string) => {
       const appleIcon = document.getElementById('app-icon') as HTMLLinkElement;
       const favIcon = document.getElementById('fav-icon') as HTMLLinkElement;
-      
       if (appleIcon) appleIcon.href = iconName;
       if (favIcon) favIcon.href = iconName;
     };
-
-    // 1. Zet icoon op werkbonlogo bij binnenkomst
     changeIcon('/werkbonlogo.png'); 
-
-    // 2. Zet terug naar standaard bij verlaten
-    return () => {
-      changeIcon('/Logo5.png'); // Pas aan naar je standaard logo
-    };
+    return () => { changeIcon('/Logo5.png'); };
   }, []);
 
-  // --- CALCULATIES ---
   const totalOriginalSize = selectedFiles.reduce((acc, file) => acc + file.size, 0);
-  
   const estimatedCompressedSize = selectedFiles.reduce((acc, file) => {
-    const targetSize = 0.3 * 1024 * 1024; // 0.3 MB
-    return acc + Math.min(file.size, targetSize);
+    return acc + Math.min(file.size, 0.3 * 1024 * 1024);
   }, 0);
 
-  // --- HANDLERS ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
@@ -132,27 +114,25 @@ export const Werkbon: React.FC = () => {
     const newPreviews = [...previews];
     newFiles.splice(index, 1);
     newPreviews.splice(index, 1);
+    URL.revokeObjectURL(previews[index]);
     setSelectedFiles(newFiles);
     setPreviews(newPreviews);
   };
 
-  // --- VERZEND LOGICA ---
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     setErrorMessage('');
 
     const formData = new FormData();
-
     formData.append("Klant_Type", customerType);
     formData.append("Kenteken", kenteken.toUpperCase());
     formData.append("Type_Werk", workType);
-    formData.append("Datum", workDate); // Datum toevoegen aan form data
+    formData.append("Datum", workDate); 
     
     if (workType === 'Reparatie' && stars > 0) {
         formData.append("Aantal_Sterren", stars.toString());
     }
-    
     formData.append("Opmerkingen", remarks);
 
     const formElement = e.currentTarget;
@@ -161,37 +141,45 @@ export const Werkbon: React.FC = () => {
       formData.append((checkbox as HTMLInputElement).name, "Ja");
     });
 
+    // BELANGRIJK: useWebWorker: false voorkomt crashes op mobiel
     const options = {
-      maxSizeMB: 0.3,
+      maxSizeMB: 0.4,
       maxWidthOrHeight: 1280,
-      useWebWorker: true,
+      useWebWorker: false, 
       fileType: "image/jpeg"
     };
 
     try {
       if (selectedFiles.length > 0) {
         console.log(`Start verwerken van ${selectedFiles.length} foto's...`);
-        
         for (const file of selectedFiles) {
           const compressedBlob = await imageCompression(file, options);
-          
           const fileWithOriginalTime = new File([compressedBlob], file.name, {
              type: compressedBlob.type,
              lastModified: file.lastModified 
           });
-
           const stampedFile = await addTimestampToImage(fileWithOriginalTime);
-          
           formData.append("attachment", stampedFile, file.name);
         }
       }
 
       console.log("Uploaden naar Cloudflare Worker...");
-
+      
       const response = await fetch("https://autoglasproapi.timosteen22.workers.dev", {
         method: "POST",
         body: formData
       });
+
+      if (!response.ok) {
+        let errorText = "Server gaf een foutmelding";
+        try {
+            const errData = await response.json();
+            errorText = errData.message || errorText;
+        } catch {
+            errorText = `Server error: ${response.status}`;
+        }
+        throw new Error(errorText);
+      }
 
       const data = await response.json();
 
@@ -199,13 +187,23 @@ export const Werkbon: React.FC = () => {
         setIsSuccess(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        console.error("API Error Message:", data.message);
         setErrorMessage(data.message || "Er is iets misgegaan bij de server.");
       }
 
     } catch (error: any) {
-      console.error("Technische Fout:", error);
-      setErrorMessage(`Er is een technische fout opgetreden: ${error.message || error}`);
+      console.error("Verzend Fout:", error);
+      let displayError = "Er is een technische fout opgetreden.";
+      
+      // Vang de specifieke ProgressEvent fout af (Netwerk/CORS)
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+          displayError = "Netwerkfout: Server onbereikbaar. Check internet.";
+      } else if (typeof error === 'object' && (!error.message || error.type === 'error')) {
+          displayError = "Netwerkfout: Verbinding verbroken of geblokkeerd (CORS/Adblocker).";
+      } else if (error.message) {
+          displayError = error.message;
+      }
+      
+      setErrorMessage(displayError);
     } finally {
       setIsSubmitting(false);
     }
@@ -219,7 +217,7 @@ export const Werkbon: React.FC = () => {
             <Check size={40} strokeWidth={3} />
           </div>
           <h2 className="text-3xl font-black text-gray-800 mb-2">Werkbon Verstuurd!</h2>
-          <p className="text-gray-500 mb-8">De werkbon en {selectedFiles.length} foto's zijn succesvol verkleind en verzonden.</p>
+          <p className="text-gray-500 mb-8">Succesvol verwerkt en verzonden.</p>
           <button onClick={() => window.location.reload()} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition">
             Nieuwe Werkbon Starten
           </button>
@@ -231,13 +229,11 @@ export const Werkbon: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-12">
       <div className="max-w-3xl mx-auto px-4">
-        
-        {/* Header */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center p-3 bg-blue-600 text-white rounded-xl mb-4 shadow-lg">
             <ClipboardList size={32} />
           </div>
-          <h1 className="text-4xl font-black text-blue-900 uppercase tracking-tight">Digitale Werkbon aanpassen</h1>
+          <h1 className="text-4xl font-black text-blue-900 uppercase tracking-tight">Digitale Werkbon</h1>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
@@ -256,8 +252,6 @@ export const Werkbon: React.FC = () => {
               </div>
             </div>
 
-            <hr className="my-6 border-gray-100" />
-
             {/* KENTEKEN */}
             <div className="mb-8">
               <label className="block text-sm font-bold text-gray-700 uppercase mb-2 ml-1">Kenteken</label>
@@ -270,17 +264,14 @@ export const Werkbon: React.FC = () => {
             {/* TYPE WERK */}
             <div className="mb-8 space-y-4">
               <label className="block text-sm font-bold text-gray-700 uppercase mb-2 ml-1">Type Werkzaamheid</label>
-              
               <label className={`relative flex items-center p-5 border-2 rounded-xl cursor-pointer transition ${workType === 'Reparatie' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
                 <input type="radio" name="Type_Werk" value="Ruit Reparatie" required onChange={() => setWorkType('Reparatie')} className="w-6 h-6 text-blue-600" />
                 <div className="ml-4">
                   <span className="block font-black text-xl text-gray-800 uppercase">Ruit Reparatie</span>
-                  <span className="text-sm text-gray-500">Sterretje(s) herstellen</span>
                 </div>
               </label>
-
               {workType === 'Reparatie' && (
-                <div className="ml-4 md:ml-10 p-6 bg-white border-2 border-dashed border-blue-200 rounded-2xl animate-in fade-in slide-in-from-top-2">
+                <div className="ml-4 md:ml-10 p-6 bg-white border-2 border-dashed border-blue-200 rounded-2xl">
                   <p className="text-xs font-bold text-blue-900 uppercase mb-4 text-center">Aantal sterren</p>
                   <div className="flex justify-center items-center gap-6">
                     {[1, 2, 3, 4].map((num) => (
@@ -291,7 +282,6 @@ export const Werkbon: React.FC = () => {
                   </div>
                 </div>
               )}
-
               <label className={`relative flex items-center p-5 border-2 rounded-xl cursor-pointer transition ${workType === 'Vervanging' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
                 <input type="radio" name="Type_Werk" value="Ruit Vervanging" onChange={() => { setWorkType('Vervanging'); setStars(0); }} className="w-6 h-6 text-blue-600" />
                 <div className="ml-4">
@@ -300,24 +290,14 @@ export const Werkbon: React.FC = () => {
               </label>
             </div>
 
-            {/* NIEUW: DATUM VELD */}
+            {/* DATUM VELD */}
             <div className="mb-8">
               <label className="block text-sm font-bold text-gray-700 uppercase mb-2 ml-1">Datum Uitvoering</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-                  <Calendar size={20} />
-                </div>
-                <input 
-                  type="date" 
-                  required 
-                  value={workDate} 
-                  onChange={(e) => setWorkDate(e.target.value)} 
-                  className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 text-gray-800 font-bold text-lg rounded-lg focus:border-blue-600 outline-none" 
-                />
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400"><Calendar size={20} /></div>
+                <input type="date" required value={workDate} onChange={(e) => setWorkDate(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 text-gray-800 font-bold text-lg rounded-lg focus:border-blue-600 outline-none" />
               </div>
             </div>
-
-            <hr className="my-8 border-gray-100" />
 
             {/* CHECKLIST */}
             <div className="mb-8">
@@ -332,22 +312,11 @@ export const Werkbon: React.FC = () => {
               </div>
             </div>
 
-            <style>
-              {`
-                .fixed.bottom-6.right-6.z-50.group {
-                  display: none !important;
-                }
-              `}
-            </style>
-
             {/* FOTO UPLOAD */}
             <div className="mb-8">
               <div className="flex justify-between items-end mb-2 ml-1">
-                <label className="block text-sm font-bold text-gray-700 uppercase flex items-center gap-2">
-                  <Camera size={18} /> Foto's ({selectedFiles.length})
-                </label>
+                <label className="block text-sm font-bold text-gray-700 uppercase flex items-center gap-2"><Camera size={18} /> Foto's ({selectedFiles.length})</label>
               </div>
-
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 bg-gray-50 hover:bg-blue-50 hover:border-blue-400 transition text-center group relative">
                 <input type="file" id="file-upload" multiple accept="image/*" onChange={handleFileChange} className="hidden" />
                 <label htmlFor="file-upload" className="cursor-pointer block w-full h-full">
@@ -355,34 +324,20 @@ export const Werkbon: React.FC = () => {
                     <div className="p-3 bg-white rounded-full shadow-sm group-hover:scale-110 transition"><Camera className="text-blue-600" size={24} /></div>
                   </div>
                   <span className="block font-bold text-blue-900">Klik om foto's toe te voegen</span>
-                  <span className="block text-xs text-gray-400 mt-1">Met datumstempel & max compressie</span>
+                  <span className="block text-xs text-gray-400 mt-1">Met datumstempel</span>
                 </label>
               </div>
-
-              {/* DATA GEBRUIK BALKJE */}
               {selectedFiles.length > 0 && (
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between text-xs md:text-sm text-blue-800">
-                   <div className="flex items-center gap-2">
-                      <FileBarChart size={16} />
-                      <span className="font-bold">Org:</span> {formatBytes(totalOriginalSize)}
-                   </div>
-                   <div className="flex items-center gap-2">
-                      <span className="font-bold text-green-700">Geschat:</span> ~{formatBytes(estimatedCompressedSize)}
-                   </div>
+                    <div className="flex items-center gap-2"><FileBarChart size={16} /><span className="font-bold">Org:</span> {formatBytes(totalOriginalSize)}</div>
+                    <div className="flex items-center gap-2"><span className="font-bold text-green-700">Geschat:</span> ~{formatBytes(estimatedCompressedSize)}</div>
                 </div>
               )}
-
               {previews.length > 0 && (
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   {previews.map((src, index) => (
                     <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group">
                       <img src={src} alt="Preview" className="w-full h-full object-cover" />
-                      
-                      {/* Grootte per foto overlay */}
-                      <div className="absolute bottom-0 left-0 bg-black/60 text-white text-[10px] px-2 py-1 rounded-tr-lg">
-                        {formatBytes(selectedFiles[index].size)}
-                      </div>
-
                       <button type="button" onClick={() => removePhoto(index)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="text-white w-8 h-8" /></button>
                     </div>
                   ))}
@@ -390,22 +345,20 @@ export const Werkbon: React.FC = () => {
               )}
             </div>
 
-            {/* OPMERKINGEN */}
             <div className="mb-8">
               <label className="block text-sm font-bold text-gray-700 uppercase mb-2 ml-1">Opmerkingen</label>
               <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={4} placeholder="Bijzonderheden..." className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 outline-none"></textarea>
             </div>
 
-            {/* ERROR */}
             {errorMessage && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-start gap-3">
-                <AlertCircle size={24} className="shrink-0" />
-                <div><h4 className="font-bold">Er is iets misgegaan:</h4><p className="text-sm">{errorMessage}</p></div>
+                <AlertCircle size={24} className="shrink-0 mt-1" />
+                <div className="overflow-hidden"><h4 className="font-bold">Er is iets misgegaan:</h4><p className="text-sm break-words">{errorMessage}</p></div>
               </div>
             )}
 
             <button type="submit" disabled={isSubmitting} className={`w-full text-white font-black py-5 rounded-xl shadow-lg flex items-center justify-center gap-3 text-xl transition-all ${isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 shadow-red-200 transform hover:-translate-y-1'}`}>
-              {isSubmitting ? <><Loader2 size={24} className="animate-spin" /> Comprimeren & Versturen...</> : <>Werkbon Versturen <Send size={24} /></>}
+              {isSubmitting ? <><Loader2 size={24} className="animate-spin" /> Bezig met versturen...</> : <>Werkbon Versturen <Send size={24} /></>}
             </button>
           </form>
         </div>
