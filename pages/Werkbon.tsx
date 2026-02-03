@@ -126,6 +126,7 @@ export const Werkbon: React.FC = () => {
 
     const formData = new FormData();
     formData.append("Klant_Type", customerType);
+    // FORCEER UPPERCASE BIJ VERZENDEN
     formData.append("Kenteken", kenteken.toUpperCase());
     formData.append("Type_Werk", workType);
     formData.append("Datum", workDate); 
@@ -141,7 +142,6 @@ export const Werkbon: React.FC = () => {
       formData.append((checkbox as HTMLInputElement).name, "Ja");
     });
 
-    // BELANGRIJK: useWebWorker: false voorkomt crashes op mobiel
     const options = {
       maxSizeMB: 0.4,
       maxWidthOrHeight: 1280,
@@ -194,7 +194,6 @@ export const Werkbon: React.FC = () => {
       console.error("Verzend Fout:", error);
       let displayError = "Er is een technische fout opgetreden.";
       
-      // Vang de specifieke ProgressEvent fout af (Netwerk/CORS)
       if (error instanceof TypeError && error.message.includes("fetch")) {
           displayError = "Netwerkfout: Server onbereikbaar. Check internet.";
       } else if (typeof error === 'object' && (!error.message || error.type === 'error')) {
@@ -257,7 +256,14 @@ export const Werkbon: React.FC = () => {
               <label className="block text-sm font-bold text-gray-700 uppercase mb-2 ml-1">Kenteken</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400"><Car size={20} /></div>
-                <input type="text" required placeholder="XX-000-X" value={kenteken} onChange={(e) => setKenteken(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-yellow-400 border-2 border-black text-black font-black text-2xl rounded-lg focus:ring-4 focus:ring-blue-200 outline-none uppercase placeholder:text-yellow-700/50" />
+                <input 
+                  type="text" 
+                  required 
+                  placeholder="XX-000-X" 
+                  value={kenteken} 
+                  onChange={(e) => setKenteken(e.target.value.toUpperCase())} 
+                  className="w-full pl-12 pr-4 py-4 bg-yellow-400 border-2 border-black text-black font-black text-2xl rounded-lg focus:ring-4 focus:ring-blue-200 outline-none uppercase placeholder:text-yellow-700/50" 
+                />
               </div>
             </div>
 

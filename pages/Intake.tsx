@@ -8,7 +8,7 @@ import imageCompression from 'browser-image-compression';
 // Zorg dat dit pad klopt naar jouw logo
 import Logo from '../assets/AutoglasPRO-logo-2.png';
 
-// --- HELPER: FORMATTEER BYTES (Overgenomen uit Werkbon) ---
+// --- HELPER: FORMATTEER BYTES ---
 const formatBytes = (bytes: number, decimals = 1) => {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -18,7 +18,7 @@ const formatBytes = (bytes: number, decimals = 1) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
-// --- HELPER: DATUM/TIJD IN BRANDEN (Overgenomen uit Werkbon) ---
+// --- HELPER: DATUM/TIJD IN BRANDEN ---
 const addTimestampToImage = async (imageFile: File): Promise<File> => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -82,7 +82,7 @@ export const Intake: React.FC = () => {
   const [jobType, setJobType] = useState<string>("");
   const [billingType, setBillingType] = useState<string>("");
 
-  // State voor bestanden (Nieuw)
+  // State voor bestanden
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
 
@@ -142,9 +142,9 @@ export const Intake: React.FC = () => {
 
     const formData = new FormData(e.currentTarget);
     
-    // Validatie: Kenteken OF Chassis
-    const kenteken = formData.get("Kenteken")?.toString().trim();
-    const chassis = formData.get("Chassis")?.toString().trim();
+    // Validatie en Formatting: Kenteken en Chassis naar HOOFDLETTERS
+    let kenteken = formData.get("Kenteken")?.toString().trim().toUpperCase() || "";
+    let chassis = formData.get("Chassis")?.toString().trim().toUpperCase() || "";
 
     if (!kenteken && !chassis) {
       setResult({ 
@@ -160,10 +160,14 @@ export const Intake: React.FC = () => {
     // Standaard velden
     formData.append("Type_Werk", "Intake_Nieuw"); 
     
+    // Overschrijf met uppercase waarden
+    formData.set("Kenteken", kenteken);
+    formData.set("Chassis", chassis);
+    
     // Verwijder eventuele lege bestand-inputs die HTML standaard meegeeft
     formData.delete("attachment");
 
-    // --- FOTO VERWERKING (Uit Werkbon) ---
+    // --- FOTO VERWERKING ---
     const options = {
       maxSizeMB: 0.3,
       maxWidthOrHeight: 1280,
@@ -254,11 +258,23 @@ export const Intake: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Kenteken</label>
-                <input type="text" name="Kenteken" placeholder="X-123-XX" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB] uppercase" />
+                <input 
+                  type="text" 
+                  name="Kenteken" 
+                  placeholder="X-123-XX" 
+                  onInput={(e) => e.currentTarget.value = e.currentTarget.value.toUpperCase()}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB] uppercase" 
+                />
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Chassisnummer (VIN)</label>
-                <input type="text" name="Chassis" placeholder="Volledig chassisnummer" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB] uppercase" />
+                <input 
+                  type="text" 
+                  name="Chassis" 
+                  placeholder="Volledig chassisnummer" 
+                  onInput={(e) => e.currentTarget.value = e.currentTarget.value.toUpperCase()}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB] uppercase" 
+                />
               </div>
             </div>
           </section>
@@ -403,7 +419,7 @@ export const Intake: React.FC = () => {
             )}
           </section>
 
-          {/* 5. BESTANDEN & OPMERKINGEN (GEUPDATE MET PREVIEWS) */}
+          {/* 5. BESTANDEN & OPMERKINGEN */}
           <section className="space-y-4">
              <div>
               <label className="block text-sm font-bold text-gray-700 mb-1">Extra Opmerkingen</label>
@@ -414,7 +430,7 @@ export const Intake: React.FC = () => {
                <Camera size={18} /> Foto's & Bijlagen
              </label>
 
-             {/* Nieuwe Upload UI */}
+             {/* Upload UI */}
              <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 bg-gray-50 hover:bg-blue-50 hover:border-blue-400 transition text-center group relative">
                 <input type="file" id="file-upload" multiple accept="image/*" onChange={handleFileChange} className="hidden" />
                 <label htmlFor="file-upload" className="cursor-pointer block w-full h-full">
