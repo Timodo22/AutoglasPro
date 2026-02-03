@@ -84,6 +84,7 @@ export const Werkbon: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // --- EFFECT: CUSTOM ICON VOOR WERKBON ---
   useEffect(() => {
     const changeIcon = (iconName: string) => {
       const appleIcon = document.getElementById('app-icon') as HTMLLinkElement;
@@ -91,8 +92,12 @@ export const Werkbon: React.FC = () => {
       if (appleIcon) appleIcon.href = iconName;
       if (favIcon) favIcon.href = iconName;
     };
-    changeIcon('/werkbonlogo.png'); 
-    return () => { changeIcon('/Logo5.png'); };
+    
+    // Zet icoon naar werkbon logo
+    changeIcon('/assets/werkbonlogo.png'); 
+    
+    // Zet terug naar standaard bij verlaten
+    return () => { changeIcon('/assets/Logo5.png'); };
   }, []);
 
   const totalOriginalSize = selectedFiles.reduce((acc, file) => acc + file.size, 0);
@@ -126,8 +131,10 @@ export const Werkbon: React.FC = () => {
 
     const formData = new FormData();
     formData.append("Klant_Type", customerType);
-    // FORCEER UPPERCASE BIJ VERZENDEN
+    
+    // FORCEER UPPERCASE KENTEKEN
     formData.append("Kenteken", kenteken.toUpperCase());
+    
     formData.append("Type_Werk", workType);
     formData.append("Datum", workDate); 
     
@@ -261,6 +268,7 @@ export const Werkbon: React.FC = () => {
                   required 
                   placeholder="XX-000-X" 
                   value={kenteken} 
+                  // Forceer Uppercase bij typen
                   onChange={(e) => setKenteken(e.target.value.toUpperCase())} 
                   className="w-full pl-12 pr-4 py-4 bg-yellow-400 border-2 border-black text-black font-black text-2xl rounded-lg focus:ring-4 focus:ring-blue-200 outline-none uppercase placeholder:text-yellow-700/50" 
                 />

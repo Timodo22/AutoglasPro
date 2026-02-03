@@ -5,7 +5,7 @@ import {
   Camera, Trash2, FileBarChart 
 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
-// Zorg dat dit pad klopt naar jouw logo
+// Zorg dat dit pad klopt naar jouw logo in src/assets
 import Logo from '../assets/AutoglasPRO-logo-2.png';
 
 // --- HELPER: FORMATTEER BYTES ---
@@ -94,7 +94,7 @@ export const Intake: React.FC = () => {
     return acc + Math.min(file.size, targetSize);
   }, 0);
 
-  // --- CUSTOM ICON LOGICA ---
+  // --- CUSTOM ICON LOGICA VOOR INTAKE ---
   useEffect(() => {
     const changeIcon = (iconName: string) => {
       const appleIcon = document.getElementById('app-icon') as HTMLLinkElement;
@@ -104,10 +104,12 @@ export const Intake: React.FC = () => {
       if (favIcon) favIcon.href = iconName;
     };
 
-    changeIcon('/intakelogo.png'); 
+    // Zet icoon naar intake logo
+    changeIcon('/assets/intakelogo.png'); 
 
+    // Zet terug naar standaard bij verlaten
     return () => {
-      changeIcon('/Logo5.png'); 
+      changeIcon('/assets/Logo5.png'); 
     };
   }, []);
 
@@ -262,6 +264,7 @@ export const Intake: React.FC = () => {
                   type="text" 
                   name="Kenteken" 
                   placeholder="X-123-XX" 
+                  // Forceer uppercase on input
                   onInput={(e) => e.currentTarget.value = e.currentTarget.value.toUpperCase()}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB] uppercase" 
                 />
@@ -272,6 +275,7 @@ export const Intake: React.FC = () => {
                   type="text" 
                   name="Chassis" 
                   placeholder="Volledig chassisnummer" 
+                  // Forceer uppercase on input
                   onInput={(e) => e.currentTarget.value = e.currentTarget.value.toUpperCase()}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB] uppercase" 
                 />
