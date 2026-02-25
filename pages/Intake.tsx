@@ -72,17 +72,72 @@ const addTimestampToImage = async (imageFile: File): Promise<File> => {
   });
 };
 
+// Interface voor onze opgeslagen formulier data
+interface FormState {
+  Kenteken: string;
+  Chassis: string;
+  Naam: string;
+  Email_Klant: string;
+  Telefoon: string;
+  Postcode: string;
+  Huisnummer: string;
+  Opdracht_Type: string;
+  Aantal_Sterren: string;
+  Schadedatum: string;
+  Facturatie_Type: string;
+  Leasemaatschappij: string;
+  Verzekeraar_Naam: string;
+  Polisnummer: string;
+  Garage_Naam: string;
+  Opmerkingen: string;
+}
+
+const initialFormState: FormState = {
+  Kenteken: '', Chassis: '', Naam: '', Email_Klant: '', Telefoon: '',
+  Postcode: '', Huisnummer: '', Opdracht_Type: '', Aantal_Sterren: '1',
+  Schadedatum: '', Facturatie_Type: '', Leasemaatschappij: '',
+  Verzekeraar_Naam: '', Polisnummer: '', Garage_Naam: '', Opmerkingen: ''
+};
+
 export const Intake: React.FC = () => {
   // --- STATE ---
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{success: boolean, message: string} | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // State voor dynamische velden
-  const [jobType, setJobType] = useState<string>("");
-  const [billingType, setBillingType] = useState<string>("");
+  // --- LOCALSTORAGE AUTO-SAVE LOGICA ---
+  // Haal bij het inladen direct de opgeslagen data op (of gebruik de lege state)
+  const [formValues, setFormValues] = useState<FormState>(() => {
+    const saved = localStorage.getItem('autoglasIntakeForm');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return initialFormState;
+      }
+    }
+    return initialFormState;
+  });
 
-  // State voor bestanden
+  // Sla elke wijziging direct op in localStorage
+  useEffect(() => {
+    localStorage.setItem('autoglasIntakeForm', JSON.stringify(formValues));
+  }, [formValues]);
+
+  // Handler voor alle tekst-, select- en radio-inputs
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    let finalValue = value;
+    
+    // Forceer uppercase voor kenteken en chassis direct in de state
+    if (name === 'Kenteken' || name === 'Chassis') {
+      finalValue = value.toUpperCase();
+    }
+    
+    setFormValues(prev => ({ ...prev, [name]: finalValue }));
+  };
+
+  // State voor bestanden (worden niet opgeslagen in localStorage ivm veiligheid en limieten)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
 
@@ -104,10 +159,8 @@ export const Intake: React.FC = () => {
       if (favIcon) favIcon.href = iconName;
     };
 
-    // Zet icoon naar intake logo
     changeIcon('/assets/intakelogo.png'); 
 
-    // Zet terug naar standaard bij verlaten
     return () => {
       changeIcon('/assets/Logo5.png'); 
     };
@@ -127,7 +180,6 @@ export const Intake: React.FC = () => {
     const newFiles = [...selectedFiles];
     const newPreviews = [...previews];
     
-    // Revoke object URL om geheugen vrij te maken
     URL.revokeObjectURL(newPreviews[index]);
 
     newFiles.splice(index, 1);
@@ -144,9 +196,9 @@ export const Intake: React.FC = () => {
 
     const formData = new FormData(e.currentTarget);
     
-    // Validatie en Formatting: Kenteken en Chassis naar HOOFDLETTERS
-    let kenteken = formData.get("Kenteken")?.toString().trim().toUpperCase() || "";
-    let chassis = formData.get("Chassis")?.toString().trim().toUpperCase() || "";
+    // Validatie
+    const kenteken = formValues.Kenteken.trim();
+    const chassis = formValues.Chassis.trim();
 
     if (!kenteken && !chassis) {
       setResult({ 
@@ -159,17 +211,9 @@ export const Intake: React.FC = () => {
 
     setIsSubmitting(true);
 
-    // Standaard velden
     formData.append("Type_Werk", "Intake_Nieuw"); 
-    
-    // Overschrijf met uppercase waarden
-    formData.set("Kenteken", kenteken);
-    formData.set("Chassis", chassis);
-    
-    // Verwijder eventuele lege bestand-inputs die HTML standaard meegeeft
     formData.delete("attachment");
 
-    // --- FOTO VERWERKING ---
     const options = {
       maxSizeMB: 0.3,
       maxWidthOrHeight: 1280,
@@ -179,26 +223,16 @@ export const Intake: React.FC = () => {
 
     try {
       if (selectedFiles.length > 0) {
-        console.log(`Start verwerken van ${selectedFiles.length} foto's...`);
-        
         for (const file of selectedFiles) {
-          // 1. Comprimeren
           const compressedBlob = await imageCompression(file, options);
-          
           const fileWithOriginalTime = new File([compressedBlob], file.name, {
              type: compressedBlob.type,
              lastModified: file.lastModified 
           });
-
-          // 2. Datumstempel toevoegen
           const stampedFile = await addTimestampToImage(fileWithOriginalTime);
-          
-          // 3. Toevoegen aan FormData
           formData.append("attachment", stampedFile, file.name);
         }
       }
-
-      console.log("Uploaden naar Cloudflare Worker...");
 
       const response = await fetch("https://autoglasproapi.timosteen22.workers.dev", {
         method: "POST",
@@ -209,11 +243,13 @@ export const Intake: React.FC = () => {
 
       if (data.success) {
         setResult({ success: true, message: "Intake succesvol verzonden!" });
-        formRef.current?.reset();
+        
+        // Formulier & State opschonen
+        setFormValues(initialFormState);
+        localStorage.removeItem('autoglasIntakeForm'); // Verwijder opgeslagen sessie
+        
         setSelectedFiles([]);
         setPreviews([]);
-        setJobType("");
-        setBillingType("");
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         setResult({ success: false, message: data.message || "Fout bij verzenden." });
@@ -264,8 +300,8 @@ export const Intake: React.FC = () => {
                   type="text" 
                   name="Kenteken" 
                   placeholder="X-123-XX" 
-                  // Forceer uppercase on input
-                  onInput={(e) => e.currentTarget.value = e.currentTarget.value.toUpperCase()}
+                  value={formValues.Kenteken}
+                  onChange={handleInputChange}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB] uppercase" 
                 />
               </div>
@@ -275,8 +311,8 @@ export const Intake: React.FC = () => {
                   type="text" 
                   name="Chassis" 
                   placeholder="Volledig chassisnummer" 
-                  // Forceer uppercase on input
-                  onInput={(e) => e.currentTarget.value = e.currentTarget.value.toUpperCase()}
+                  value={formValues.Chassis}
+                  onChange={handleInputChange}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB] uppercase" 
                 />
               </div>
@@ -291,32 +327,32 @@ export const Intake: React.FC = () => {
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Volledige Naam</label>
-                <input type="text" name="Naam" required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]" />
+                <input type="text" name="Naam" required value={formValues.Naam} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                    <label className="block text-sm font-bold text-gray-700 mb-1">E-mailadres</label>
                    <div className="relative">
                      <Mail size={18} className="absolute top-3.5 left-3 text-gray-400" />
-                     <input type="email" name="Email_Klant" className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]" />
+                     <input type="email" name="Email_Klant" value={formValues.Email_Klant} onChange={handleInputChange} className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]" />
                    </div>
                 </div>
                 <div>
                    <label className="block text-sm font-bold text-gray-700 mb-1">Telefoonnummer</label>
                    <div className="relative">
                      <Phone size={18} className="absolute top-3.5 left-3 text-gray-400" />
-                     <input type="tel" name="Telefoon" className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]" />
+                     <input type="tel" name="Telefoon" value={formValues.Telefoon} onChange={handleInputChange} className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]" />
                    </div>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                  <div className="col-span-2">
                     <label className="block text-sm font-bold text-gray-700 mb-1">Postcode</label>
-                    <input type="text" name="Postcode" placeholder="1234 AB" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]" />
+                    <input type="text" name="Postcode" placeholder="1234 AB" value={formValues.Postcode} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]" />
                  </div>
                  <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Huisnr.</label>
-                    <input type="text" name="Huisnummer" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]" />
+                    <input type="text" name="Huisnummer" value={formValues.Huisnummer} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]" />
                  </div>
               </div>
             </div>
@@ -330,8 +366,15 @@ export const Intake: React.FC = () => {
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                {['Ster', 'Vervangen', 'Tinten', 'Polijsten'].map((type) => (
-                 <label key={type} className={`cursor-pointer border-2 rounded-xl p-3 text-center transition-all ${jobType === type ? 'border-[#E30613] bg-red-50 text-[#E30613] font-bold' : 'border-gray-200 hover:border-gray-300'}`}>
-                   <input type="radio" name="Opdracht_Type" value={type} className="hidden" onChange={(e) => setJobType(e.target.value)} />
+                 <label key={type} className={`cursor-pointer border-2 rounded-xl p-3 text-center transition-all ${formValues.Opdracht_Type === type ? 'border-[#E30613] bg-red-50 text-[#E30613] font-bold' : 'border-gray-200 hover:border-gray-300'}`}>
+                   <input 
+                     type="radio" 
+                     name="Opdracht_Type" 
+                     value={type} 
+                     checked={formValues.Opdracht_Type === type}
+                     onChange={handleInputChange} 
+                     className="hidden" 
+                   />
                    {type}
                  </label>
                ))}
@@ -340,10 +383,10 @@ export const Intake: React.FC = () => {
             {/* Conditionele Velden Opdracht */}
             <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-4 animate-in fade-in slide-in-from-top-2">
               
-              {jobType === 'Ster' && (
+              {formValues.Opdracht_Type === 'Ster' && (
                 <div>
                    <label className="block text-sm font-bold text-gray-700 mb-1">Aantal Sterren</label>
-                   <select name="Aantal_Sterren" className="w-full p-3 border border-gray-300 rounded-lg">
+                   <select name="Aantal_Sterren" value={formValues.Aantal_Sterren} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg">
                      <option value="1">1 Ster</option>
                      <option value="2">2 Sterren</option>
                      <option value="3">3 Sterren</option>
@@ -351,18 +394,18 @@ export const Intake: React.FC = () => {
                 </div>
               )}
 
-              {(jobType === 'Ster' || jobType === 'Vervangen') && (
+              {(formValues.Opdracht_Type === 'Ster' || formValues.Opdracht_Type === 'Vervangen') && (
                 <div>
                    <label className="block text-sm font-bold text-gray-700 mb-1">Schadedatum</label>
-                   <input type="date" name="Schadedatum" className="w-full p-3 border border-gray-300 rounded-lg" />
+                   <input type="date" name="Schadedatum" value={formValues.Schadedatum} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg" />
                 </div>
               )}
               
-              {(jobType === 'Tinten' || jobType === 'Polijsten') && (
-                <p className="text-sm text-gray-500 italic">Voor {jobType.toLowerCase()} zijn geen extra details vereist.</p>
+              {(formValues.Opdracht_Type === 'Tinten' || formValues.Opdracht_Type === 'Polijsten') && (
+                <p className="text-sm text-gray-500 italic">Voor {formValues.Opdracht_Type.toLowerCase()} zijn geen extra details vereist.</p>
               )}
                
-               {jobType === "" && <p className="text-sm text-gray-400 italic">Selecteer eerst een type opdracht.</p>}
+               {formValues.Opdracht_Type === "" && <p className="text-sm text-gray-400 italic">Selecteer eerst een type opdracht.</p>}
             </div>
           </section>
 
@@ -375,8 +418,8 @@ export const Intake: React.FC = () => {
             <select 
               name="Facturatie_Type" 
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]"
-              onChange={(e) => setBillingType(e.target.value)}
-              defaultValue=""
+              value={formValues.Facturatie_Type}
+              onChange={handleInputChange}
             >
               <option value="" disabled>Kies facturatie methode...</option>
               <option value="Lease">Leasemaatschappij</option>
@@ -386,37 +429,37 @@ export const Intake: React.FC = () => {
             </select>
 
             {/* Conditionele Velden Facturatie */}
-            {billingType && (
+            {formValues.Facturatie_Type && (
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-4 animate-in fade-in slide-in-from-top-2">
                 
-                {billingType === 'Lease' && (
+                {formValues.Facturatie_Type === 'Lease' && (
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Naam Leasemaatschappij</label>
-                    <input type="text" name="Leasemaatschappij" required className="w-full p-3 border border-gray-300 rounded-lg" />
+                    <input type="text" name="Leasemaatschappij" required value={formValues.Leasemaatschappij} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg" />
                   </div>
                 )}
 
-                {billingType === 'Verzekeraar' && (
+                {formValues.Facturatie_Type === 'Verzekeraar' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Naam Verzekeraar</label>
-                      <input type="text" name="Verzekeraar_Naam" required className="w-full p-3 border border-gray-300 rounded-lg" />
+                      <input type="text" name="Verzekeraar_Naam" required value={formValues.Verzekeraar_Naam} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg" />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Polisnummer</label>
-                      <input type="text" name="Polisnummer" required className="w-full p-3 border border-gray-300 rounded-lg" />
+                      <input type="text" name="Polisnummer" required value={formValues.Polisnummer} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg" />
                     </div>
                   </div>
                 )}
 
-                {billingType === 'Garage' && (
+                {formValues.Facturatie_Type === 'Garage' && (
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Naam Garagebedrijf <span className="text-red-500">*</span></label>
-                    <input type="text" name="Garage_Naam" required className="w-full p-3 border border-gray-300 rounded-lg" />
+                    <input type="text" name="Garage_Naam" required value={formValues.Garage_Naam} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg" />
                   </div>
                 )}
 
-                {billingType === 'Particulier' && (
+                {formValues.Facturatie_Type === 'Particulier' && (
                   <p className="text-sm text-gray-500 italic">Factuur wordt op naam van de klant gezet.</p>
                 )}
               </div>
@@ -427,11 +470,12 @@ export const Intake: React.FC = () => {
           <section className="space-y-4">
              <div>
               <label className="block text-sm font-bold text-gray-700 mb-1">Extra Opmerkingen</label>
-              <textarea name="Opmerkingen" rows={3} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]"></textarea>
+              <textarea name="Opmerkingen" rows={3} value={formValues.Opmerkingen} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#005CAB]"></textarea>
              </div>
 
              <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
                <Camera size={18} /> Foto's & Bijlagen
+               <span className="text-xs font-normal text-red-500 ml-auto">(Let op: Foto's worden niet opgeslagen bij afsluiten)</span>
              </label>
 
              {/* Upload UI */}

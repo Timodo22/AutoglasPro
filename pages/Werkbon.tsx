@@ -68,18 +68,55 @@ const addTimestampToImage = async (imageFile: File): Promise<File> => {
   });
 };
 
+// Interface voor opgeslagen data
+interface WerkbonState {
+  customerType: string;
+  kenteken: string;
+  workType: string;
+  stars: number;
+  workDate: string;
+  remarks: string;
+  checklist: Record<string, boolean>;
+}
+
+const initialWerkbonState: WerkbonState = {
+  customerType: 'B2B',
+  kenteken: '',
+  workType: '',
+  stars: 0,
+  workDate: new Date().toISOString().split('T')[0],
+  remarks: '',
+  checklist: {
+    Regen_Sensor: false,
+    Clips: false,
+    Boven_Lijst: false,
+    Driekwart_Lijst: false,
+    Statische_Calibratie: false,
+    Dynamische_Calibratie: false
+  }
+};
+
 export const Werkbon: React.FC = () => {
-  // --- STATE ---
-  const [kenteken, setKenteken] = useState('');
-  const [stars, setStars] = useState(0);
-  const [workType, setWorkType] = useState(''); 
-  const [customerType, setCustomerType] = useState('B2B');
-  const [remarks, setRemarks] = useState('');
-  const [workDate, setWorkDate] = useState(new Date().toISOString().split('T')[0]);
-  
+  // --- LOCALSTORAGE AUTO-SAVE LOGICA ---
+  const [formValues, setFormValues] = useState<WerkbonState>(() => {
+    const saved = localStorage.getItem('autoglasWerkbonForm');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return initialWerkbonState;
+      }
+    }
+    return initialWerkbonState;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('autoglasWerkbonForm', JSON.stringify(formValues));
+  }, [formValues]);
+
+  // --- OVERIGE STATE ---
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
-  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -92,18 +129,17 @@ export const Werkbon: React.FC = () => {
       if (appleIcon) appleIcon.href = iconName;
       if (favIcon) favIcon.href = iconName;
     };
-    
-    // Zet icoon naar werkbon logo
     changeIcon('/assets/werkbonlogo.png'); 
-    
-    // Zet terug naar standaard bij verlaten
     return () => { changeIcon('/assets/Logo5.png'); };
   }, []);
 
-  const totalOriginalSize = selectedFiles.reduce((acc, file) => acc + file.size, 0);
-  const estimatedCompressedSize = selectedFiles.reduce((acc, file) => {
-    return acc + Math.min(file.size, 0.3 * 1024 * 1024);
-  }, 0);
+  // --- HANDLERS ---
+  const handleChecklistChange = (name: string) => {
+    setFormValues(prev => ({
+      ...prev,
+      checklist: { ...prev.checklist, [name]: !prev.checklist[name] }
+    }));
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -117,12 +153,17 @@ export const Werkbon: React.FC = () => {
   const removePhoto = (index: number) => {
     const newFiles = [...selectedFiles];
     const newPreviews = [...previews];
+    URL.revokeObjectURL(previews[index]);
     newFiles.splice(index, 1);
     newPreviews.splice(index, 1);
-    URL.revokeObjectURL(previews[index]);
     setSelectedFiles(newFiles);
     setPreviews(newPreviews);
   };
+
+  const totalOriginalSize = selectedFiles.reduce((acc, file) => acc + file.size, 0);
+  const estimatedCompressedSize = selectedFiles.reduce((acc, file) => {
+    return acc + Math.min(file.size, 0.3 * 1024 * 1024);
+  }, 0);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -130,23 +171,19 @@ export const Werkbon: React.FC = () => {
     setErrorMessage('');
 
     const formData = new FormData();
-    formData.append("Klant_Type", customerType);
-    
-    // FORCEER UPPERCASE KENTEKEN
-    formData.append("Kenteken", kenteken.toUpperCase());
-    
-    formData.append("Type_Werk", workType);
-    formData.append("Datum", workDate); 
-    
-    if (workType === 'Reparatie' && stars > 0) {
-        formData.append("Aantal_Sterren", stars.toString());
-    }
-    formData.append("Opmerkingen", remarks);
+    formData.append("Klant_Type", formValues.customerType);
+    formData.append("Kenteken", formValues.kenteken.toUpperCase());
+    formData.append("Type_Werk", formValues.workType);
+    formData.append("Datum", formValues.workDate); 
+    formData.append("Opmerkingen", formValues.remarks);
 
-    const formElement = e.currentTarget;
-    const checkboxes = formElement.querySelectorAll('input[type="checkbox"]:checked');
-    checkboxes.forEach((checkbox) => {
-      formData.append((checkbox as HTMLInputElement).name, "Ja");
+    if (formValues.workType === 'Reparatie' && formValues.stars > 0) {
+      formData.append("Aantal_Sterren", formValues.stars.toString());
+    }
+
+    // Checklist verwerken
+    Object.entries(formValues.checklist).forEach(([key, checked]) => {
+      if (checked) formData.append(key, "Ja");
     });
 
     const options = {
@@ -158,7 +195,6 @@ export const Werkbon: React.FC = () => {
 
     try {
       if (selectedFiles.length > 0) {
-        console.log(`Start verwerken van ${selectedFiles.length} foto's...`);
         for (const file of selectedFiles) {
           const compressedBlob = await imageCompression(file, options);
           const fileWithOriginalTime = new File([compressedBlob], file.name, {
@@ -170,27 +206,17 @@ export const Werkbon: React.FC = () => {
         }
       }
 
-      console.log("Uploaden naar Cloudflare Worker...");
-      
       const response = await fetch("https://autoglasproapi.timosteen22.workers.dev", {
         method: "POST",
         body: formData
       });
 
-      if (!response.ok) {
-        let errorText = "Server gaf een foutmelding";
-        try {
-            const errData = await response.json();
-            errorText = errData.message || errorText;
-        } catch {
-            errorText = `Server error: ${response.status}`;
-        }
-        throw new Error(errorText);
-      }
+      if (!response.ok) throw new Error(`Server error: ${response.status}`);
 
       const data = await response.json();
 
       if (data.success) {
+        localStorage.removeItem('autoglasWerkbonForm');
         setIsSuccess(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
@@ -198,18 +224,7 @@ export const Werkbon: React.FC = () => {
       }
 
     } catch (error: any) {
-      console.error("Verzend Fout:", error);
-      let displayError = "Er is een technische fout opgetreden.";
-      
-      if (error instanceof TypeError && error.message.includes("fetch")) {
-          displayError = "Netwerkfout: Server onbereikbaar. Check internet.";
-      } else if (typeof error === 'object' && (!error.message || error.type === 'error')) {
-          displayError = "Netwerkfout: Verbinding verbroken of geblokkeerd (CORS/Adblocker).";
-      } else if (error.message) {
-          displayError = error.message;
-      }
-      
-      setErrorMessage(displayError);
+      setErrorMessage(error.message || "Netwerkfout.");
     } finally {
       setIsSubmitting(false);
     }
@@ -249,10 +264,10 @@ export const Werkbon: React.FC = () => {
             <div className="mb-8">
               <label className="block text-sm font-bold text-gray-700 uppercase mb-3 ml-1">Type Opdrachtgever</label>
               <div className="grid grid-cols-2 gap-4 p-1 bg-gray-100 rounded-xl">
-                <button type="button" onClick={() => setCustomerType('B2B')} className={`flex items-center justify-center gap-2 p-3 rounded-lg transition-all font-bold text-lg ${customerType === 'B2B' ? 'bg-white text-blue-900 shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>
+                <button type="button" onClick={() => setFormValues(p => ({...p, customerType: 'B2B'}))} className={`flex items-center justify-center gap-2 p-3 rounded-lg transition-all font-bold text-lg ${formValues.customerType === 'B2B' ? 'bg-white text-blue-900 shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>
                   <Building2 size={20} /> B2B
                 </button>
-                <button type="button" onClick={() => setCustomerType('Verzekering')} className={`flex items-center justify-center gap-2 p-3 rounded-lg transition-all font-bold text-lg ${customerType === 'Verzekering' ? 'bg-white text-green-700 shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>
+                <button type="button" onClick={() => setFormValues(p => ({...p, customerType: 'Verzekering'}))} className={`flex items-center justify-center gap-2 p-3 rounded-lg transition-all font-bold text-lg ${formValues.customerType === 'Verzekering' ? 'bg-white text-green-700 shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>
                   <Shield size={20} /> Verzekering
                 </button>
               </div>
@@ -267,9 +282,8 @@ export const Werkbon: React.FC = () => {
                   type="text" 
                   required 
                   placeholder="XX-000-X" 
-                  value={kenteken} 
-                  // Forceer Uppercase bij typen
-                  onChange={(e) => setKenteken(e.target.value.toUpperCase())} 
+                  value={formValues.kenteken} 
+                  onChange={(e) => setFormValues(p => ({...p, kenteken: e.target.value.toUpperCase()}))} 
                   className="w-full pl-12 pr-4 py-4 bg-yellow-400 border-2 border-black text-black font-black text-2xl rounded-lg focus:ring-4 focus:ring-blue-200 outline-none uppercase placeholder:text-yellow-700/50" 
                 />
               </div>
@@ -278,29 +292,27 @@ export const Werkbon: React.FC = () => {
             {/* TYPE WERK */}
             <div className="mb-8 space-y-4">
               <label className="block text-sm font-bold text-gray-700 uppercase mb-2 ml-1">Type Werkzaamheid</label>
-              <label className={`relative flex items-center p-5 border-2 rounded-xl cursor-pointer transition ${workType === 'Reparatie' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
-                <input type="radio" name="Type_Werk" value="Ruit Reparatie" required onChange={() => setWorkType('Reparatie')} className="w-6 h-6 text-blue-600" />
-                <div className="ml-4">
-                  <span className="block font-black text-xl text-gray-800 uppercase">Ruit Reparatie</span>
-                </div>
+              <label className={`relative flex items-center p-5 border-2 rounded-xl cursor-pointer transition ${formValues.workType === 'Reparatie' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
+                <input type="radio" name="workType" checked={formValues.workType === 'Reparatie'} required onChange={() => setFormValues(p => ({...p, workType: 'Reparatie'}))} className="w-6 h-6 text-blue-600" />
+                <div className="ml-4"><span className="block font-black text-xl text-gray-800 uppercase">Ruit Reparatie</span></div>
               </label>
-              {workType === 'Reparatie' && (
+              
+              {formValues.workType === 'Reparatie' && (
                 <div className="ml-4 md:ml-10 p-6 bg-white border-2 border-dashed border-blue-200 rounded-2xl">
                   <p className="text-xs font-bold text-blue-900 uppercase mb-4 text-center">Aantal sterren</p>
                   <div className="flex justify-center items-center gap-6">
                     {[1, 2, 3, 4].map((num) => (
-                      <button key={num} type="button" onClick={() => setStars(num)} className="focus:outline-none transition-transform active:scale-90">
-                        <Star size={44} className={`transition-colors ${num <= stars ? 'fill-yellow-400 text-yellow-500' : 'text-gray-200'}`} />
+                      <button key={num} type="button" onClick={() => setFormValues(p => ({...p, stars: num}))} className="focus:outline-none transition-transform active:scale-90">
+                        <Star size={44} className={`transition-colors ${num <= formValues.stars ? 'fill-yellow-400 text-yellow-500' : 'text-gray-200'}`} />
                       </button>
                     ))}
                   </div>
                 </div>
               )}
-              <label className={`relative flex items-center p-5 border-2 rounded-xl cursor-pointer transition ${workType === 'Vervanging' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
-                <input type="radio" name="Type_Werk" value="Ruit Vervanging" onChange={() => { setWorkType('Vervanging'); setStars(0); }} className="w-6 h-6 text-blue-600" />
-                <div className="ml-4">
-                  <span className="block font-black text-xl text-gray-800 uppercase">Ruit Vervangen</span>
-                </div>
+
+              <label className={`relative flex items-center p-5 border-2 rounded-xl cursor-pointer transition ${formValues.workType === 'Vervanging' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
+                <input type="radio" name="workType" checked={formValues.workType === 'Vervanging'} onChange={() => setFormValues(p => ({...p, workType: 'Vervanging', stars: 0}))} className="w-6 h-6 text-blue-600" />
+                <div className="ml-4"><span className="block font-black text-xl text-gray-800 uppercase">Ruit Vervangen</span></div>
               </label>
             </div>
 
@@ -309,7 +321,7 @@ export const Werkbon: React.FC = () => {
               <label className="block text-sm font-bold text-gray-700 uppercase mb-2 ml-1">Datum Uitvoering</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400"><Calendar size={20} /></div>
-                <input type="date" required value={workDate} onChange={(e) => setWorkDate(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 text-gray-800 font-bold text-lg rounded-lg focus:border-blue-600 outline-none" />
+                <input type="date" required value={formValues.workDate} onChange={(e) => setFormValues(p => ({...p, workDate: e.target.value}))} className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 text-gray-800 font-bold text-lg rounded-lg focus:border-blue-600 outline-none" />
               </div>
             </div>
 
@@ -317,10 +329,15 @@ export const Werkbon: React.FC = () => {
             <div className="mb-8">
               <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2"><CheckCircle size={20} className="text-green-500" /> Onderdelen & Service</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {['Regen_Sensor', 'Clips', 'Boven_Lijst', 'Driekwart_Lijst', 'Statische_Calibratie', 'Dynamische_Calibratie'].map((item) => (
+                {Object.keys(formValues.checklist).map((item) => (
                   <label key={item} className="flex items-center p-4 border border-gray-200 rounded-xl hover:bg-blue-50 cursor-pointer group">
-                    <input type="checkbox" name={item} className="w-5 h-5 text-blue-600 rounded" />
-                    <span className="ml-3 font-semibold text-gray-700 group-hover:text-blue-900">{item.replace('_', ' ')}</span>
+                    <input 
+                      type="checkbox" 
+                      checked={formValues.checklist[item]} 
+                      onChange={() => handleChecklistChange(item)}
+                      className="w-5 h-5 text-blue-600 rounded" 
+                    />
+                    <span className="ml-3 font-semibold text-gray-700 group-hover:text-blue-900">{item.replace(/_/g, ' ')}</span>
                   </label>
                 ))}
               </div>
@@ -328,9 +345,7 @@ export const Werkbon: React.FC = () => {
 
             {/* FOTO UPLOAD */}
             <div className="mb-8">
-              <div className="flex justify-between items-end mb-2 ml-1">
-                <label className="block text-sm font-bold text-gray-700 uppercase flex items-center gap-2"><Camera size={18} /> Foto's ({selectedFiles.length})</label>
-              </div>
+              <label className="block text-sm font-bold text-gray-700 uppercase flex items-center gap-2 mb-2 ml-1"><Camera size={18} /> Foto's ({selectedFiles.length})</label>
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 bg-gray-50 hover:bg-blue-50 hover:border-blue-400 transition text-center group relative">
                 <input type="file" id="file-upload" multiple accept="image/*" onChange={handleFileChange} className="hidden" />
                 <label htmlFor="file-upload" className="cursor-pointer block w-full h-full">
@@ -338,30 +353,37 @@ export const Werkbon: React.FC = () => {
                     <div className="p-3 bg-white rounded-full shadow-sm group-hover:scale-110 transition"><Camera className="text-blue-600" size={24} /></div>
                   </div>
                   <span className="block font-bold text-blue-900">Klik om foto's toe te voegen</span>
-                  <span className="block text-xs text-gray-400 mt-1">Met datumstempel</span>
+                  <span className="block text-xs text-gray-400 mt-1 italic">Worden niet opgeslagen bij afsluiten</span>
                 </label>
               </div>
+              
               {selectedFiles.length > 0 && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between text-xs md:text-sm text-blue-800">
-                    <div className="flex items-center gap-2"><FileBarChart size={16} /><span className="font-bold">Org:</span> {formatBytes(totalOriginalSize)}</div>
-                    <div className="flex items-center gap-2"><span className="font-bold text-green-700">Geschat:</span> ~{formatBytes(estimatedCompressedSize)}</div>
-                </div>
-              )}
-              {previews.length > 0 && (
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  {previews.map((src, index) => (
-                    <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group">
-                      <img src={src} alt="Preview" className="w-full h-full object-cover" />
-                      <button type="button" onClick={() => removePhoto(index)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="text-white w-8 h-8" /></button>
-                    </div>
-                  ))}
-                </div>
+                <>
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between text-xs md:text-sm text-blue-800">
+                      <div className="flex items-center gap-2"><FileBarChart size={16} /><span className="font-bold">Org:</span> {formatBytes(totalOriginalSize)}</div>
+                      <div className="flex items-center gap-2"><span className="font-bold text-green-700">Geschat:</span> ~{formatBytes(estimatedCompressedSize)}</div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    {previews.map((src, index) => (
+                      <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group">
+                        <img src={src} alt="Preview" className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => removePhoto(index)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="text-white w-8 h-8" /></button>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
 
             <div className="mb-8">
               <label className="block text-sm font-bold text-gray-700 uppercase mb-2 ml-1">Opmerkingen</label>
-              <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={4} placeholder="Bijzonderheden..." className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 outline-none"></textarea>
+              <textarea 
+                value={formValues.remarks} 
+                onChange={(e) => setFormValues(p => ({...p, remarks: e.target.value}))} 
+                rows={4} 
+                placeholder="Bijzonderheden..." 
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 outline-none"
+              ></textarea>
             </div>
 
             {errorMessage && (
